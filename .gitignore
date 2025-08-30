@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Build outputs
+/dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+temp*.png
+temp*.jpg
+
+# Blender files (too large for GitHub)
+*.blend
+*.blend1
+
+# 3D model files might be large
+*.glb
+*.gltf

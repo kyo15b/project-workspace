@@ -1,0 +1,43 @@
+<!-- 主應用組件樣板 -->
+<div class="app-container">
+  
+  <!-- 應用標題列 -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="app-logo">
+        <span class="logo-icon">🫀</span>
+        <h1 class="app-title">{{ title }}</h1>
+      </div>
+      
+      <div class="header-info">
+        <span class="version-tag">v1.0.0</span>
+        <span class="tech-stack">Angular 13 + Three.js</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主要內容區域 -->
+  <main class="app-main">
+    <app-body-model></app-body-model>
+  </main>
+
+  <!-- 頁腳資訊 -->
+  <footer class="app-footer">
+    <div class="footer-content">
+      <p class="copyright">
+        © 2024 3D人體模型系統 | 
+        <span class="powered-by">Powered by Claude Code</span>
+      </p>
+      
+      <div class="footer-links">
+        <a href="#" class="footer-link" title="使用說明">📖 說明</a>
+        <a href="#" class="footer-link" title="技術支援">🛠️ 支援</a>
+        <a href="#" class="footer-link" title="關於我們">ℹ️ 關於</a>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<!-- 路由出口（未來擴展用） -->
+<router-outlet></router-outlet>

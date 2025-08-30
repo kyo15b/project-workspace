@@ -1,0 +1,174 @@
+<!-- 3D人體模型組件樣板 -->
+<div class="body-model-container">
+  
+  <!-- 載入狀態覆蓋層 -->
+  <div class="loading-overlay" *ngIf="loadingState.isLoading || loadingState.hasError">
+    <div class="loading-content">
+      
+      <!-- 載入中 -->
+      <div *ngIf="loadingState.isLoading && !loadingState.hasError" class="loading-spinner-container">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">{{ loadingDisplay }}</div>
+        <div class="loading-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" [style.width.%]="loadingState.progress"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 錯誤狀態 -->
+      <div *ngIf="loadingState.hasError" class="error-container">
+        <div class="error-icon">⚠️</div>
+        <div class="error-text">{{ loadingDisplay }}</div>
+        <button class="retry-button" (click)="reloadModel()">重新載入</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 主要內容區域 -->
+  <div class="main-content" [class.model-loaded]="interactionState.isModelLoaded">
+    
+    <!-- 3D渲染區域 -->
+    <div class="canvas-container">
+      <canvas #canvas class="render-canvas"></canvas>
+      
+      <!-- 3D場景控制提示 -->
+      <div class="canvas-overlay" *ngIf="interactionState.isModelLoaded">
+        <div class="interaction-hints">
+          <div class="hint-item">
+            <span class="hint-icon">🖱️</span>
+            <span class="hint-text">點擊身體部位進行選擇</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 側邊控制面板 -->
+    <div class="control-panel" *ngIf="interactionState.isModelLoaded">
+      
+      <!-- 標題區域 -->
+      <div class="panel-header">
+        <h2 class="panel-title">3D人體模型</h2>
+        <div class="model-stats">
+          <span class="stat-item">總部位: {{ stats.totalParts }}</span>
+          <span class="stat-divider">|</span>
+          <span class="stat-item">可點擊: {{ stats.clickableParts }}</span>
+        </div>
+      </div>
+
+      <!-- 搜尋區域 -->
+      <div class="search-section">
+        <div class="search-input-container">
+          <input 
+            type="text" 
+            class="search-input"
+            placeholder="搜尋身體部位..." 
+            [(ngModel)]="searchQuery"
+            (input)="onSearch($event.target?.value || '')"
+          >
+          <button 
+            class="search-clear-button" 
+            *ngIf="searchQuery"
+            (click)="onSearch('')"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="search-results-info">{{ searchResultsInfo }}</div>
+      </div>
+
+      <!-- 分類篩選 -->
+      <div class="category-section">
+        <h3 class="section-title">身體部位分類</h3>
+        <div class="category-filters">
+          <button
+            *ngFor="let category of bodyPartsByCategory | keyvalue"
+            class="category-button"
+            [ngClass]="getCategoryCssClass(category.key)"
+            (click)="filterByCategory(category.key)"
+          >
+            <span class="category-name">{{ getCategoryDisplayName(category.key) }}</span>
+            <span class="category-count">({{ stats.categoryCounts[category.key] || 0 }})</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 目前狀態顯示 -->
+      <div class="status-section">
+        
+        <!-- 選中的身體部位 -->
+        <div class="status-item selected-part" *ngIf="hasSelectedPart">
+          <div class="status-label">
+            <span class="status-icon">👆</span>
+            <span class="status-text">已選擇</span>
+          </div>
+          <div class="status-value selected-part-name">{{ selectedPartInfo }}</div>
+          <button class="clear-selection-button" (click)="clearSelection()">清除選擇</button>
+        </div>
+
+        <!-- 懸停的身體部位 -->
+        <div class="status-item hovered-part" *ngIf="hasHoveredPart && !hasSelectedPart">
+          <div class="status-label">
+            <span class="status-icon">👀</span>
+            <span class="status-text">懸停中</span>
+          </div>
+          <div class="status-value hovered-part-name">{{ hoveredPartInfo }}</div>
+        </div>
+
+        <!-- 無選擇狀態 -->
+        <div class="status-item no-selection" *ngIf="!hasSelectedPart && !hasHoveredPart">
+          <div class="status-label">
+            <span class="status-icon">ℹ️</span>
+            <span class="status-text">提示</span>
+          </div>
+          <div class="status-value">點擊3D模型上的身體部位進行選擇</div>
+        </div>
+
+      </div>
+
+      <!-- 身體部位清單 -->
+      <div class="parts-list-section">
+        <h3 class="section-title">
+          身體部位清單
+          <span class="parts-count">({{ filteredBodyParts.length }})</span>
+        </h3>
+        
+        <div class="parts-list-container">
+          <div class="parts-list">
+            <div
+              *ngFor="let part of filteredBodyParts; trackBy: trackByPartName"
+              class="part-item"
+              [class.selected]="part === interactionState.selectedPart"
+              [class.hovered]="part === interactionState.hoveredPart"
+              [class.clickable]="part.clickable"
+              (click)="selectBodyPart(part)"
+            >
+              <div class="part-info">
+                <div class="part-name">{{ part.displayName }}</div>
+                <div class="part-category">{{ getCategoryDisplayName(part.category) }}</div>
+              </div>
+              <div class="part-indicators">
+                <span class="clickable-indicator" *ngIf="part.clickable" title="可點擊">🎯</span>
+                <span class="highlighted-indicator" *ngIf="part.isHighlighted" title="已高亮">✨</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 空狀態提示 -->
+        <div class="empty-state" *ngIf="filteredBodyParts.length === 0">
+          <div class="empty-icon">🔍</div>
+          <div class="empty-text">
+            <div class="empty-title">找不到匹配的身體部位</div>
+            <div class="empty-subtitle">嘗試調整搜尋條件或分類篩選</div>
+          </div>
+          <button class="reset-filters-button" (click)="onSearch(''); filterByCategory('')">
+            重置篩選
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
