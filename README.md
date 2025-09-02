@@ -1,11 +1,11 @@
-# TradingView Pine 多專案工作區
+# Project Workspace
 
 這是一個多專案工作區，用於管理不同的開發專案，並共用 Claude Code sub agent 配置。
 
 ## 專案結構
 
 ```
-TradingView-Pine/
+project-workspace/
 ├── .claude/                    # 共用的 Claude Code sub agent 設定
 │   ├── agents/                 # sub agent 配置檔案
 │   └── settings.local.json     # 本地設定
