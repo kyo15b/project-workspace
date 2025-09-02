@@ -1,0 +1,334 @@
+// 主應用組件樣式
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  font-family: 'Microsoft JhengHei', 'PingFang TC', 'Apple LiGothic Medium', sans-serif;
+  background: #f8f9fa;
+}
+
+// 應用標題列
+.app-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 200;
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.app-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-icon {
+  font-size: 2rem;
+  animation: pulse 3s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.app-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  background: linear-gradient(45deg, #ffffff, #e3f2fd);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.header-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.9rem;
+}
+
+.version-tag {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 500;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.tech-stack {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  font-style: italic;
+}
+
+// 主要內容區域
+.app-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
+}
+
+// 頁腳
+.app-footer {
+  background: #343a40;
+  color: #adb5bd;
+  padding: 0;
+  border-top: 1px solid #495057;
+  position: relative;
+  z-index: 100;
+}
+
+.footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-size: 0.85rem;
+}
+
+.copyright {
+  margin: 0;
+  color: #adb5bd;
+}
+
+.powered-by {
+  color: #6c757d;
+  font-style: italic;
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.footer-link {
+  color: #adb5bd;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+    text-decoration: none;
+  }
+}
+
+// 響應式設計
+@media (max-width: 768px) {
+  .header-content {
+    padding: 1rem;
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+
+  .app-title {
+    font-size: 1.3rem;
+  }
+
+  .header-info {
+    gap: 12px;
+    font-size: 0.8rem;
+  }
+
+  .footer-content {
+    padding: 12px 1rem;
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .footer-links {
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .app-main {
+    min-height: calc(100vh - 140px);
+  }
+}
+
+@media (max-width: 480px) {
+  .header-content {
+    padding: 0.75rem;
+  }
+
+  .app-logo {
+    gap: 8px;
+  }
+
+  .logo-icon {
+    font-size: 1.5rem;
+  }
+
+  .app-title {
+    font-size: 1.1rem;
+  }
+
+  .header-info {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .version-tag {
+    padding: 2px 8px;
+    font-size: 0.8rem;
+  }
+
+  .tech-stack {
+    font-size: 0.75rem;
+  }
+
+  .footer-content {
+    padding: 8px;
+    font-size: 0.75rem;
+  }
+
+  .footer-links {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .footer-link {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+  }
+}
+
+// 深色模式支援
+@media (prefers-color-scheme: dark) {
+  .app-container {
+    background: #1a1a1a;
+    color: #ffffff;
+  }
+
+  .app-header {
+    background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+  }
+
+  .app-footer {
+    background: #111111;
+    border-top-color: #333333;
+  }
+
+  .copyright,
+  .footer-link {
+    color: #cccccc;
+  }
+
+  .footer-link:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+// 高對比模式支援
+@media (prefers-contrast: high) {
+  .app-header {
+    background: #000000;
+    border-bottom: 2px solid #ffffff;
+  }
+
+  .app-title {
+    -webkit-text-fill-color: white;
+    color: white;
+  }
+
+  .version-tag {
+    background: #ffffff;
+    color: #000000;
+    border: 2px solid #ffffff;
+  }
+
+  .app-footer {
+    background: #000000;
+    border-top: 2px solid #ffffff;
+  }
+
+  .footer-link {
+    border: 1px solid #adb5bd;
+    
+    &:hover {
+      background: #ffffff;
+      color: #000000;
+      border-color: #ffffff;
+    }
+  }
+}
+
+// 印刷樣式
+@media print {
+  .app-header,
+  .app-footer {
+    display: none;
+  }
+
+  .app-main {
+    height: auto;
+  }
+
+  .app-container {
+    background: white;
+    color: black;
+  }
+}
+
+// 動畫效果
+.app-header,
+.app-main,
+.app-footer {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// 載入時的動畫延遲
+.app-header {
+  animation-delay: 0.1s;
+}
+
+.app-main {
+  animation-delay: 0.2s;
+}
+
+.app-footer {
+  animation-delay: 0.3s;
+}
+
+// 確保初始狀態透明
+.app-header,
+.app-main,
+.app-footer {
+  opacity: 0;
+  animation-fill-mode: forwards;
+}

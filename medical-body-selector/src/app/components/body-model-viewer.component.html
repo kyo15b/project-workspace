@@ -1,0 +1,114 @@
+<div class="body-model-viewer">
+  <!-- 控制面板 -->
+  <div class="control-panel">
+    <div class="gender-selector">
+      <h3>選擇性別</h3>
+      <div class="gender-buttons">
+        <button 
+          class="btn"
+          [class.btn-primary]="currentGender === Gender.MALE"
+          [class.btn-secondary]="currentGender !== Gender.MALE"
+          (click)="switchGender(Gender.MALE)"
+          [disabled]="isLoading">
+          男性
+        </button>
+        <button 
+          class="btn"
+          [class.btn-primary]="currentGender === Gender.FEMALE"
+          [class.btn-secondary]="currentGender !== Gender.FEMALE"
+          (click)="switchGender(Gender.FEMALE)"
+          [disabled]="isLoading">
+          女性
+        </button>
+      </div>
+    </div>
+
+    <div class="model-controls">
+      <button 
+        class="btn btn-primary parts-button"
+        (click)="showModel()"
+        [disabled]="isLoading || isModelVisible">
+        部位
+      </button>
+      
+      <button 
+        class="btn btn-secondary"
+        (click)="hideModel()"
+        [disabled]="isLoading || !isModelVisible">
+        隱藏
+      </button>
+      
+      <button 
+        class="btn btn-secondary"
+        (click)="resetView()"
+        [disabled]="!isModelVisible">
+        重置視角
+      </button>
+      
+      <button 
+        class="btn btn-secondary"
+        (click)="clearSelection()"
+        [disabled]="!selectedBodyPart">
+        清除選擇
+      </button>
+    </div>
+  </div>
+
+  <!-- 3D模型視窗 -->
+  <div class="model-container">
+    <div #canvasContainer class="canvas-container"></div>
+    
+    <!-- 載入狀態 -->
+    <div *ngIf="isLoading" class="loading-overlay">
+      <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>載入模型中...</p>
+      </div>
+    </div>
+
+    <!-- 模型未顯示時的提示 -->
+    <div *ngIf="!isModelVisible && !isLoading" class="empty-state">
+      <div class="empty-content">
+        <h3>點擊「部位」按鈕顯示人體模型</h3>
+        <p>選擇性別後點擊部位按鈕來顯示3D人體模型</p>
+      </div>
+    </div>
+
+    <!-- 操作說明 -->
+    <div *ngIf="isModelVisible" class="instructions">
+      <div class="instruction-item">
+        <span class="icon">🖱️</span>
+        <span>點擊身體部位進行選擇</span>
+      </div>
+      <div class="instruction-item">
+        <span class="icon">👆</span>
+        <span>滑鼠懸停查看部位高亮</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 選擇信息顯示 -->
+  <div *ngIf="selectedBodyPart" class="selection-info">
+    <div class="card">
+      <h4>已選擇身體部位</h4>
+      <div class="body-part-info">
+        <div class="info-row">
+          <span class="label">中文名稱:</span>
+          <span class="value">{{ selectedBodyPart.chineseName }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">英文名稱:</span>
+          <span class="value">{{ selectedBodyPart.name }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">返回值:</span>
+          <span class="value code">{{ selectedBodyPart.value }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">類別:</span>
+          <span class="value">{{ selectedBodyPart.category }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
