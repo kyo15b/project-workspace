@@ -10,7 +10,18 @@
       "Bash(dir)",
       "Bash(git init:*)",
       "Bash(git add:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(move src medical-body-selector/)",
+      "Bash(move angular.json medical-body-selector/)",
+      "Bash(move package.json medical-body-selector/)",
+      "Bash(move package-lock.json medical-body-selector/)",
+      "Bash(move tsconfig.json medical-body-selector/)",
+      "Bash(move tsconfig.app.json medical-body-selector/)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

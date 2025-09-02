@@ -1,0 +1,147 @@
+<div class="body-part-list">
+  <div class="list-header">
+    <h3>身體部位列表</h3>
+    <div class="header-info">
+      <span class="gender-info">當前性別: {{ currentGender === Gender.MALE ? '男性' : '女性' }}</span>
+      <span class="selection-count">已選擇: {{ selectedBodyParts.length }} 個部位</span>
+    </div>
+  </div>
+
+  <!-- 操作按鈕 -->
+  <div class="action-buttons">
+    <button 
+      class="btn btn-secondary"
+      (click)="clearAllSelections()"
+      [disabled]="selectedBodyParts.length === 0">
+      清除全部選擇
+    </button>
+    <button 
+      class="btn btn-primary"
+      (click)="exportSelectionData()"
+      [disabled]="selectedBodyParts.length === 0">
+      匯出選擇資料
+    </button>
+  </div>
+
+  <!-- 分類顯示身體部位 -->
+  <div class="categories-container">
+    <div 
+      *ngFor="let category of getCategories()" 
+      class="category-section">
+      
+      <div class="category-header">
+        <h4>{{ categoryNames[category] }}</h4>
+        <span class="part-count">({{ categorizedParts[category]?.length || 0 }} 個部位)</span>
+      </div>
+
+      <div class="parts-grid">
+        <div 
+          *ngFor="let part of categorizedParts[category]"
+          class="part-item"
+          [class.selected]="isSelected(part)"
+          (click)="selectBodyPart(part)">
+          
+          <div class="part-content">
+            <div class="part-names">
+              <div class="chinese-name">{{ part.chineseName }}</div>
+              <div class="english-name">{{ part.name }}</div>
+            </div>
+            
+            <div class="part-details">
+              <div class="part-value">{{ part.value }}</div>
+              <div class="part-position">
+                位置: ({{ part.position.x.toFixed(1) }}, {{ part.position.y.toFixed(1) }}, {{ part.position.z.toFixed(1) }})
+              </div>
+            </div>
+          </div>
+
+          <div class="selection-indicator" *ngIf="isSelected(part)">
+            <span class="checkmark">✓</span>
+          </div>
+
+          <button 
+            *ngIf="isSelected(part)"
+            class="remove-btn"
+            (click)="deselectBodyPart(part.id); $event.stopPropagation()"
+            title="取消選擇">
+            ×
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 選擇歷史 -->
+  <div *ngIf="selectionHistory.length > 0" class="selection-history">
+    <div class="history-header">
+      <h4>最近選擇</h4>
+    </div>
+    
+    <div class="history-list">
+      <div 
+        *ngFor="let part of selectionHistory.slice(0, 5); let i = index"
+        class="history-item"
+        [class.current-selection]="selectedBodyParts.some(selected => selected.id === part.id)"
+        (click)="selectBodyPart(part)">
+        
+        <span class="history-index">{{ i + 1 }}</span>
+        <span class="history-name">{{ part.chineseName }}</span>
+        <span class="history-value">{{ part.value }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 選擇摘要 -->
+  <div *ngIf="selectedBodyParts.length > 0" class="selection-summary">
+    <div class="summary-header">
+      <h4>選擇摘要</h4>
+    </div>
+    
+    <div class="summary-content">
+      <div class="summary-stats">
+        <div class="stat-item">
+          <span class="stat-label">總計:</span>
+          <span class="stat-value">{{ selectedBodyParts.length }} 個部位</span>
+        </div>
+        
+        <div class="stat-item">
+          <span class="stat-label">返回值:</span>
+          <div class="values-list">
+            <span 
+              *ngFor="let value of getSelectionValues(); let last = last"
+              class="value-item">
+              {{ value }}<span *ngIf="!last">, </span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 詳細信息 -->
+      <div class="detailed-selection">
+        <div 
+          *ngFor="let part of selectedBodyParts"
+          class="selected-part-detail">
+          
+          <div class="part-info">
+            <span class="part-name">{{ part.chineseName }}</span>
+            <span class="part-separator">→</span>
+            <span class="part-value">{{ part.value }}</span>
+          </div>
+          
+          <button 
+            class="btn-remove"
+            (click)="deselectBodyPart(part.id)"
+            title="移除此選擇">
+            移除
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 空狀態提示 -->
+  <div *ngIf="availableBodyParts.length === 0" class="empty-state">
+    <p>沒有可用的身體部位數據</p>
+    <p>請先載入3D模型</p>
+  </div>
+</div>
