@@ -38,16 +38,39 @@ taiwan-stock-chip-analysis/
 - sqlite3 (資料存儲)
 
 ## 使用方法
+
+### 📋 手動模式
 ```bash
 # 安裝依賴
 pip install -r requirements.txt
 
-# 執行資料收集
-python src/data_collector/main.py
+# 收集籌碼資料
+python main.py collect 2330
 
-# 執行分析
-python src/analyzer/main.py
+# 分析籌碼資料  
+python main.py analyze 2330
+
+# 互動式模式
+python main.py interactive
 ```
+
+### 🤖 自動化模式
+```bash
+# 手動執行一次收集
+python scheduler.py --manual
+
+# 啟動自動排程器
+python scheduler.py --run
+
+# Windows 一鍵啟動 (雙擊執行)
+run_scheduler.bat
+```
+
+### ⏰ 排程設定
+- **每個交易日 09:30** - 開盤後資料收集
+- **每個交易日 14:30** - 收盤後資料收集  
+- **每週日 10:00** - 週報分析
+- **每月1號 02:00** - 清理舊資料
 
 ## 注意事項
 - 請遵守各資料源的API使用條款
