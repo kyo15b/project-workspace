@@ -4,6 +4,10 @@ npm-debug.log*
 
 # Build outputs
 /dist/
+*/dist/
+
+# Angular cache
+.angular/cache/
 
 # IDE
 .vscode/

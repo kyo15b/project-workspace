@@ -21,7 +21,8 @@
       "Bash(move package-lock.json medical-body-selector/)",
       "Bash(move tsconfig.json medical-body-selector/)",
       "Bash(move tsconfig.app.json medical-body-selector/)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
