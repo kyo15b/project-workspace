@@ -158,6 +158,31 @@ h2 {
 .sync-status {
     font-size: 13px;
     color: #6c757d;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.debug-btn {
+    background: #17a2b8;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    opacity: 0.7;
+}
+
+.debug-btn:hover {
+    background: #138496;
+    transform: scale(1.1);
+    opacity: 1;
 }
 
 @media (max-width: 768px) {

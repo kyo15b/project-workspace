@@ -7,12 +7,14 @@ class StockMonitor {
     }
 
     async init() {
+        console.log('應用程式初始化開始...');
         this.initAuth();
         this.bindEvents();
         await this.initStockDatabase();
         this.loadStocks();
         this.renderStocks();
         this.startAutoRefresh();
+        console.log('應用程式初始化完成');
     }
 
     async initStockDatabase() {
@@ -67,12 +69,15 @@ class StockMonitor {
     }
 
     initAuth() {
+        console.log(`初始化認證狀態, currentUser: ${this.currentUser}`);
         if (this.currentUser) {
             this.showUserInfo();
             this.hideAuthSection();
+            console.log(`已登入使用者: ${this.currentUser}`);
         } else {
             this.showAuthSection();
             this.hideUserInfo();
+            console.log('使用者未登入，顯示登入介面');
         }
     }
 
@@ -167,12 +172,47 @@ class StockMonitor {
 
         // 模擬登入過程 (實際應該連接到後端 API)
         setTimeout(() => {
+            // 先保存當前本地股票清單
+            const currentLocalStocks = [...this.stocks];
+            console.log(`登入前本地股票:`, currentLocalStocks);
+            
+            // 設定當前使用者
             this.currentUser = email;
             localStorage.setItem('currentUser', email);
+            console.log(`設定使用者: ${email}`);
+            
+            // 檢查雲端是否已有此帳戶的股票資料
+            const cloudKey = `stocks_${email}`;
+            const cloudStocks = localStorage.getItem(cloudKey);
+            console.log(`雲端股票資料 (${cloudKey}):`, cloudStocks);
+            
+            if (cloudStocks) {
+                // 雲端有資料，載入雲端股票
+                try {
+                    this.stocks = JSON.parse(cloudStocks);
+                    this.updateSyncStatus(`✅ 從雲端載入 ${this.stocks.length} 檔股票`);
+                    console.log(`從雲端載入股票: ${this.stocks.length} 檔`, this.stocks);
+                } catch (e) {
+                    console.error('雲端股票資料解析失敗:', e);
+                    this.stocks = currentLocalStocks;
+                    this.saveToStorage();
+                }
+            } else {
+                // 雲端沒資料，如果本地有股票則同步到雲端
+                if (currentLocalStocks.length > 0) {
+                    this.stocks = currentLocalStocks;
+                    this.saveToStorage(); // 同步到雲端
+                    this.updateSyncStatus(`✅ 本地 ${this.stocks.length} 檔股票已同步到雲端`);
+                    console.log(`本地股票已同步到雲端: ${this.stocks.length} 檔`, this.stocks);
+                } else {
+                    this.stocks = [];
+                    this.updateSyncStatus('💫 新帳戶，請開始添加股票');
+                    console.log('新帳戶，無股票資料');
+                }
+            }
             
             this.showUserInfo();
             this.hideAuthSection();
-            this.loadStocks();
             this.renderStocks();
             
             this.showAuthStatus('✅ 登入成功！', 'success');
@@ -302,11 +342,21 @@ class StockMonitor {
         if (this.currentUser) {
             // 已登入：從雲端載入
             const cloudKey = `stocks_${this.currentUser}`;
-            this.stocks = JSON.parse(localStorage.getItem(cloudKey)) || [];
-            this.updateSyncStatus('✅ 已從雲端同步');
+            const savedStocks = localStorage.getItem(cloudKey);
+            
+            if (savedStocks) {
+                this.stocks = JSON.parse(savedStocks);
+                this.updateSyncStatus(`✅ 從雲端載入 ${this.stocks.length} 檔股票`);
+                console.log(`從雲端載入股票: ${this.currentUser}, 共 ${this.stocks.length} 檔股票`, this.stocks);
+            } else {
+                this.stocks = [];
+                this.updateSyncStatus('💫 新帳戶，雲端暫無股票');
+                console.log(`新帳戶: ${this.currentUser}, 雲端暫無股票資料`);
+            }
         } else {
             // 未登入：從本地載入
             this.stocks = JSON.parse(localStorage.getItem('monitoredStocks')) || [];
+            console.log(`本地載入股票: 共 ${this.stocks.length} 檔股票`, this.stocks);
         }
     }
 
@@ -315,7 +365,17 @@ class StockMonitor {
             // 已登入：同步到雲端
             const cloudKey = `stocks_${this.currentUser}`;
             localStorage.setItem(cloudKey, JSON.stringify(this.stocks));
-            this.updateSyncStatus('✅ 已同步到雲端');
+            
+            // 更新同步狀態和時間戳
+            const syncData = {
+                stocks: this.stocks,
+                lastUpdate: Date.now(),
+                user: this.currentUser
+            };
+            localStorage.setItem(`${cloudKey}_sync`, JSON.stringify(syncData));
+            
+            this.updateSyncStatus(`✅ 已同步 ${this.stocks.length} 檔股票`);
+            console.log(`股票已同步到雲端: ${this.currentUser}, 共 ${this.stocks.length} 檔股票`);
         } else {
             // 未登入：只存本地
             localStorage.setItem('monitoredStocks', JSON.stringify(this.stocks));
@@ -630,6 +690,91 @@ class StockMonitor {
         
         // 開啟內建圖表頁面
         window.open(`chart.html?stock=${stockCode}`, '_blank');
+    }
+
+    showSyncDebugInfo() {
+        const debugInfo = {
+            currentUser: this.currentUser,
+            currentStocks: this.stocks,
+            localStorage: {}
+        };
+
+        // 收集所有相關的 localStorage 資料
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith('stocks_') || key === 'monitoredStocks' || key === 'currentUser')) {
+                try {
+                    debugInfo.localStorage[key] = JSON.parse(localStorage.getItem(key));
+                } catch (e) {
+                    debugInfo.localStorage[key] = localStorage.getItem(key);
+                }
+            }
+        }
+
+        // 建立調試彈窗
+        const modal = document.createElement('div');
+        modal.className = 'chart-modal';
+        modal.innerHTML = `
+            <div class="chart-modal-content" style="max-width: 600px; max-height: 70vh;">
+                <div class="chart-modal-header">
+                    <h3>同步調試資訊</h3>
+                    <button class="modal-close" onclick="this.closest('.chart-modal').remove()">&times;</button>
+                </div>
+                <div style="padding: 20px; overflow-y: auto; max-height: 500px;">
+                    <h4>目前狀態</h4>
+                    <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 12px; overflow-x: auto;">${JSON.stringify(debugInfo, null, 2)}</pre>
+                    
+                    <div style="margin-top: 20px;">
+                        <button onclick="stockMonitor.clearAllSyncData()" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 10px;">清除所有同步資料</button>
+                        <button onclick="stockMonitor.forceSyncCurrentStocks()" style="background: #27ae60; color: white; border: none; padding: 8px 16px; border-radius: 4px;">強制同步當前股票</button>
+                    </div>
+                    
+                    <div style="margin-top: 15px; font-size: 12px; color: #666;">
+                        <strong>說明：</strong><br>
+                        • currentUser: 當前登入使用者<br>
+                        • currentStocks: 目前顯示的股票清單<br>
+                        • localStorage: 瀏覽器儲存的所有相關資料
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // 點擊背景關閉
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+
+    clearAllSyncData() {
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && (key.startsWith('stocks_') || key === 'monitoredStocks' || key === 'currentUser')) {
+                keys.push(key);
+            }
+        }
+        
+        keys.forEach(key => localStorage.removeItem(key));
+        
+        // 重新整理頁面
+        window.location.reload();
+    }
+
+    forceSyncCurrentStocks() {
+        if (this.currentUser) {
+            this.saveToStorage();
+            this.updateSyncStatus(`🔄 強制同步完成: ${this.stocks.length} 檔股票`);
+        } else {
+            alert('請先登入才能同步');
+        }
+        
+        // 關閉彈窗並重新顯示調試資訊
+        document.querySelector('.chart-modal').remove();
+        setTimeout(() => this.showSyncDebugInfo(), 100);
     }
 
     startAutoRefresh() {
