@@ -6,12 +6,64 @@ class StockMonitor {
         this.init();
     }
 
-    init() {
+    async init() {
         this.initAuth();
         this.bindEvents();
+        await this.initStockDatabase();
         this.loadStocks();
         this.renderStocks();
         this.startAutoRefresh();
+    }
+
+    async initStockDatabase() {
+        if (window.stockDataFetcher && window.stockDataFetcher.needsUpdate()) {
+            console.log('正在更新股票資料庫...');
+            this.showUpdateStatus('🔄 正在更新股票資料庫...');
+            
+            try {
+                const success = await window.stockDataFetcher.updateStockList();
+                if (success) {
+                    this.showUpdateStatus('✅ 股票資料庫已更新', 3000);
+                } else {
+                    this.showUpdateStatus('⚠️ 使用離線股票資料', 3000);
+                }
+            } catch (error) {
+                console.error('股票資料庫更新失敗:', error);
+                this.showUpdateStatus('⚠️ 使用離線股票資料', 3000);
+            }
+        }
+    }
+
+    showUpdateStatus(message, hideAfter = null) {
+        // 在頁面顯示更新狀態
+        let statusDiv = document.getElementById('updateStatus');
+        if (!statusDiv) {
+            statusDiv = document.createElement('div');
+            statusDiv.id = 'updateStatus';
+            statusDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: rgba(0,0,0,0.8);
+                color: white;
+                padding: 10px 15px;
+                border-radius: 6px;
+                font-size: 14px;
+                z-index: 10000;
+                transition: opacity 0.3s;
+            `;
+            document.body.appendChild(statusDiv);
+        }
+        
+        statusDiv.textContent = message;
+        statusDiv.style.opacity = '1';
+        
+        if (hideAfter) {
+            setTimeout(() => {
+                statusDiv.style.opacity = '0';
+                setTimeout(() => statusDiv.remove(), 300);
+            }, hideAfter);
+        }
     }
 
     initAuth() {
@@ -198,21 +250,46 @@ class StockMonitor {
 
     // 將輸入（代號或名稱）解析為標準股票代號
     resolveToStockCode(input) {
-        // 先搜尋看是否能找到匹配的股票
+        // 優先使用動態股票資料庫
+        if (window.stockDataFetcher) {
+            const results = window.stockDataFetcher.searchStock(input);
+            if (results.length > 0) {
+                return results[0].code;
+            }
+        }
+        
+        // 備援：使用靜態資料庫
         const results = searchStock(input);
         if (results.length > 0) {
-            // 返回第一個匹配結果的股票代號
             return results[0].code;
         }
         
         // 如果搜尋不到，檢查是否直接是有效的股票代號
-        const stockInfo = getStockInfo(input);
+        const stockInfo = this.getStockInfo(input);
         if (stockInfo && stockInfo.name !== input) {
-            // 如果有找到股票資訊且名稱不等於輸入，表示輸入的是有效代號
             return input;
         }
         
         return null;
+    }
+
+    // 增強的股票資訊獲取
+    getStockInfo(code) {
+        // 優先使用動態資料庫
+        if (window.stockDataFetcher) {
+            const fullStockList = window.stockDataFetcher.getFullStockList();
+            if (fullStockList[code]) {
+                return {
+                    name: fullStockList[code].name,
+                    fullName: fullStockList[code].fullName,
+                    category: fullStockList[code].category,
+                    market: fullStockList[code].market
+                };
+            }
+        }
+        
+        // 備援：使用靜態資料庫
+        return getStockInfo(code);
     }
 
     removeStock(stockCode) {
@@ -261,8 +338,8 @@ class StockMonitor {
     async simulateApiCall(stockCode) {
         return new Promise((resolve) => {
             setTimeout(() => {
-                // 獲取股票資訊
-                const stockInfo = getStockInfo(stockCode);
+                // 獲取股票資訊  
+                const stockInfo = this.getStockInfo ? this.getStockInfo(stockCode) : getStockInfo(stockCode);
                 
                 // 產生模擬股價資料
                 const basePrice = Math.random() * 500 + 50;
@@ -369,7 +446,7 @@ class StockMonitor {
 
         // 顯示載入狀態
         stockListContainer.innerHTML = this.stocks.map(code => {
-            const stockInfo = getStockInfo(code);
+            const stockInfo = this.getStockInfo(code);
             return `
                 <div class="stock-card" onclick="stockMonitor.openChart('${code}')" title="點擊查看 K 線圖">
                     <div class="stock-header">
@@ -424,7 +501,16 @@ class StockMonitor {
             return;
         }
 
-        const results = searchStock(query);
+        // 優先使用動態股票資料庫搜尋
+        let results = [];
+        if (window.stockDataFetcher) {
+            results = window.stockDataFetcher.searchStock(query);
+        }
+        
+        // 如果動態資料庫沒有結果，使用靜態資料庫
+        if (results.length === 0) {
+            results = searchStock(query);
+        }
         
         if (results.length === 0) {
             searchResultsContainer.innerHTML = `
