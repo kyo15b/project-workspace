@@ -467,23 +467,19 @@ class StockMonitor {
                 </div>
                 
                 <div class="stock-data-item">
-                    <span class="stock-data-label">開盤</span>
-                    <span class="stock-data-value">$${stockData.open}</span>
+                    <span class="stock-data-value">${stockData.volume}</span>
                 </div>
                 
                 <div class="stock-data-item">
-                    <span class="stock-data-label">最高</span>
                     <span class="stock-data-value">$${stockData.high}</span>
                 </div>
                 
                 <div class="stock-data-item">
-                    <span class="stock-data-label">最低</span>
                     <span class="stock-data-value">$${stockData.low}</span>
                 </div>
                 
                 <div class="stock-data-item">
-                    <span class="stock-data-label">成交量</span>
-                    <span class="stock-data-value">${stockData.volume}</span>
+                    <span class="stock-data-value">$${stockData.open}</span>
                 </div>
                 
                 <div class="stock-timestamp">${stockData.timestamp}</div>
