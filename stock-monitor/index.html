@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票監控面板</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>股票監控面板</h1>
+        
+        <div class="config-section">
+            <h2>設定監控股票</h2>
+            <div class="search-container">
+                <div class="input-group">
+                    <input type="text" id="stockCode" placeholder="輸入股票代號或公司名稱 (例: 2330 或 台積電)">
+                    <button id="addStock">新增股票</button>
+                </div>
+                <div id="searchResults" class="search-results"></div>
+            </div>
+        </div>
+
+        <div class="stocks-section">
+            <h2>監控清單</h2>
+            <div id="stockList" class="stock-list">
+                <!-- 股票卡片會動態產生在這裡 -->
+            </div>
+        </div>
+    </div>
+
+    <script src="data/stock-list.js"></script>
+    <script src="assets/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>股票技術分析 - K線圖</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <style>
+        .chart-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .chart-header {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .stock-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .stock-symbol {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .stock-details {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        
+        .back-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.3s;
+        }
+        
+        .back-btn:hover {
+            background: #2980b9;
+        }
+        
+        #tradingview_chart {
+            height: 600px;
+            width: 100%;
+        }
+        
+        .chart-tabs {
+            display: flex;
+            background: #f8f9fa;
+            padding: 0 20px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .chart-tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .chart-tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+        
+        .chart-tab:hover {
+            background: #e9ecef;
+        }
+        
+        .info-panel {
+            padding: 20px;
+            background: #f8f9fa;
+            display: none;
+        }
+        
+        .info-panel.active {
+            display: block;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .info-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        @media (max-width: 768px) {
+            .chart-header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+            
+            #tradingview_chart {
+                height: 400px;
+            }
+            
+            .chart-tabs {
+                overflow-x: auto;
+                white-space: nowrap;
+                padding: 0 10px;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="chart-container">
+            <div class="chart-header">
+                <div class="stock-info">
+                    <div class="stock-symbol" id="stockSymbol">載入中...</div>
+                    <div class="stock-details" id="stockDetails">正在載入股票資訊...</div>
+                </div>
+                <a href="index.html" class="back-btn">← 回到監控面板</a>
+            </div>
+            
+            <div class="chart-tabs">
+                <div class="chart-tab active" onclick="showChart()">K線圖</div>
+                <div class="chart-tab" onclick="showInfo()">基本資料</div>
+            </div>
+            
+            <div id="chartPanel">
+                <div id="tradingview_chart"></div>
+            </div>
+            
+            <div id="infoPanel" class="info-panel">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">當前股價</div>
+                        <div class="info-value" id="currentPrice">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">漲跌幅</div>
+                        <div class="info-value" id="changePercent">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">成交量</div>
+                        <div class="info-value" id="volume">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">市值</div>
+                        <div class="info-value">計算中...</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">本益比</div>
+                        <div class="info-value">計算中...</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">殖利率</div>
+                        <div class="info-value">計算中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TradingView Widget -->
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script src="data/stock-list.js"></script>
+    <script>
+        // 從 URL 參數獲取股票代號
+        function getStockCodeFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('stock') || '2330'; // 預設為台積電
+        }
+
+        // 顯示圖表面板
+        function showChart() {
+            document.getElementById('chartPanel').style.display = 'block';
+            document.getElementById('infoPanel').classList.remove('active');
+            
+            // 更新 tabs
+            document.querySelectorAll('.chart-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        // 顯示資訊面板
+        function showInfo() {
+            document.getElementById('chartPanel').style.display = 'none';
+            document.getElementById('infoPanel').classList.add('active');
+            
+            // 更新 tabs
+            document.querySelectorAll('.chart-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        // 初始化頁面
+        function initializePage() {
+            const stockCode = getStockCodeFromUrl();
+            const stockInfo = getStockInfo(stockCode);
+            
+            // 更新頁面標題和股票資訊
+            document.title = `${stockCode} ${stockInfo.name} - 技術分析`;
+            document.getElementById('stockSymbol').textContent = `${stockCode} ${stockInfo.name}`;
+            document.getElementById('stockDetails').textContent = `${stockInfo.fullName} | ${stockInfo.category}`;
+            
+            // 初始化 TradingView 圖表
+            initTradingViewChart(stockCode);
+            
+            // 載入股票基本資料 (模擬)
+            loadStockBasicInfo(stockCode);
+        }
+
+        // 初始化 TradingView 圖表
+        function initTradingViewChart(stockCode) {
+            // 台股代號映射表
+            const symbolMappings = {
+                // 主要個股
+                '2330': 'TWSE:2330',  // 台積電
+                '2317': 'TWSE:2317',  // 鴻海
+                '2454': 'TWSE:2454',  // 聯發科
+                '2412': 'TWSE:2412',  // 中華電
+                '2881': 'TWSE:2881',  // 富邦金
+                '2882': 'TWSE:2882',  // 國泰金
+                '2303': 'TWSE:2303',  // 聯電
+                // ETF
+                '0050': 'TPE:0050',   // 元大台灣50
+                '0056': 'TPE:0056',   // 元大高股息
+                '006208': 'TPE:006208', // 富邦台50
+            };
+            
+            // 獲取對應的 TradingView 代號
+            let tradingViewSymbol = symbolMappings[stockCode];
+            
+            // 如果沒有預設映射，使用通用規則
+            if (!tradingViewSymbol) {
+                if (stockCode.startsWith('00')) {
+                    tradingViewSymbol = `TPE:${stockCode}`;
+                } else {
+                    tradingViewSymbol = `TWSE:${stockCode}`;
+                }
+            }
+            
+            console.log(`Loading chart for ${stockCode} -> ${tradingViewSymbol}`);
+            
+            try {
+                new TradingView.widget({
+                    "autosize": true,
+                    "symbol": tradingViewSymbol,
+                    "interval": "D",
+                    "timezone": "Asia/Taipei",
+                    "theme": "light",
+                    "style": "1",
+                    "locale": "zh_TW",
+                    "toolbar_bg": "#f1f3f6",
+                    "enable_publishing": false,
+                    "allow_symbol_change": true,
+                    "container_id": "tradingview_chart",
+                    "studies": [
+                        "MASimple@tv-basicstudies",
+                        "Volume@tv-basicstudies"
+                    ],
+                    "show_popup_button": true,
+                    "popup_width": "1000",
+                    "popup_height": "650",
+                    "height": 600,
+                    "width": "100%"
+                });
+            } catch (error) {
+                console.error('TradingView 圖表載入錯誤:', error);
+                // 顯示錯誤訊息和備用選項
+                showChartError(stockCode, tradingViewSymbol);
+            }
+        }
+        
+        // 顯示圖表載入錯誤和備用選項
+        function showChartError(stockCode, tradingViewSymbol) {
+            const chartContainer = document.getElementById('tradingview_chart');
+            chartContainer.innerHTML = `
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 500px; text-align: center; color: #7f8c8d;">
+                    <h3 style="margin-bottom: 20px;">無法載入 ${stockCode} 的圖表資料</h3>
+                    <p style="margin-bottom: 20px;">TradingView 可能沒有此股票的資料 (${tradingViewSymbol})</p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                        <a href="https://tw.tradingview.com/symbols/TWSE-${stockCode}/" target="_blank" 
+                           style="background: #3498db; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none;">
+                           在 TradingView 查看
+                        </a>
+                        <a href="https://tw.stock.yahoo.com/quote/${stockCode}" target="_blank"
+                           style="background: #9b59b6; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none;">
+                           Yahoo 股市
+                        </a>
+                        <a href="https://www.cnyes.com/twstock/${stockCode}" target="_blank"
+                           style="background: #e74c3c; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none;">
+                           鉅亨網
+                        </a>
+                    </div>
+                    <p style="margin-top: 20px; font-size: 14px;">
+                        或嘗試在上方圖表工具中手動搜尋股票代號
+                    </p>
+                </div>
+            `;
+        }
+
+        // 載入股票基本資料 (模擬資料)
+        function loadStockBasicInfo(stockCode) {
+            // 模擬 API 呼叫延遲
+            setTimeout(() => {
+                const mockData = {
+                    currentPrice: (Math.random() * 500 + 50).toFixed(2),
+                    changePercent: ((Math.random() - 0.5) * 10).toFixed(2),
+                    volume: Math.floor(Math.random() * 10000000).toLocaleString()
+                };
+                
+                document.getElementById('currentPrice').textContent = `$${mockData.currentPrice}`;
+                document.getElementById('changePercent').textContent = `${mockData.changePercent > 0 ? '+' : ''}${mockData.changePercent}%`;
+                document.getElementById('changePercent').style.color = mockData.changePercent >= 0 ? '#27ae60' : '#e74c3c';
+                document.getElementById('volume').textContent = mockData.volume;
+            }, 1000);
+        }
+
+        // 頁面載入完成後初始化
+        window.addEventListener('load', initializePage);
+    </script>
+</body>
+</html>
