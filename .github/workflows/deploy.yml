@@ -28,17 +28,10 @@ jobs:
     - name: Setup Pages
       uses: actions/configure-pages@v4
       
-    - name: Copy stock-monitor files to root
-      run: |
-        # 將 stock-monitor 資料夾中的檔案複製到根目錄
-        cp -r stock-monitor/* .
-        # 確保有 index.html 在根目錄
-        ls -la
-        
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
-        path: '.'
+        path: './stock-monitor'
         
     - name: Deploy to GitHub Pages
       id: deployment
