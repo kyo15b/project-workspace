@@ -63,6 +63,7 @@ const STOCK_DATA = {
     '2408': { name: '南亞科', fullName: '南亞科技股份有限公司', category: '半導體' },
     '2498': { name: '宏達電', fullName: '宏達國際電子股份有限公司', category: '通信網路' },
     '3008': { name: '大立光', fullName: '大立光電股份有限公司', category: '光電' },
+    '3019': { name: '亞光', fullName: '亞光科技股份有限公司', category: '光電' },
     '3045': { name: '台灣大', fullName: '台灣大哥大股份有限公司', category: '通信網路' },
     '6505': { name: '台塑化', fullName: '台塑石化股份有限公司', category: '油電燃氣' },
     '9904': { name: '寶成', fullName: '寶成工業股份有限公司', category: '紡織纖維' }
