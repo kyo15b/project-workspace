@@ -1,14 +1,49 @@
 class StockMonitor {
     constructor() {
-        this.stocks = JSON.parse(localStorage.getItem('monitoredStocks')) || [];
+        this.currentUser = localStorage.getItem('currentUser') || null;
+        this.stocks = [];
         this.apiKey = 'demo'; // 使用示範 API key，實際使用時需要申請真實的 API key
         this.init();
     }
 
     init() {
+        this.initAuth();
         this.bindEvents();
+        this.loadStocks();
         this.renderStocks();
         this.startAutoRefresh();
+    }
+
+    initAuth() {
+        if (this.currentUser) {
+            this.showUserInfo();
+            this.hideAuthSection();
+        } else {
+            this.showAuthSection();
+            this.hideUserInfo();
+        }
+    }
+
+    showAuthSection() {
+        document.getElementById('authSection').style.display = 'block';
+    }
+
+    hideAuthSection() {
+        document.getElementById('authSection').style.display = 'none';
+    }
+
+    showUserInfo() {
+        document.getElementById('userInfo').style.display = 'flex';
+        document.getElementById('currentUser').textContent = this.currentUser;
+        this.updateSyncStatus('✅ 已同步');
+    }
+
+    hideUserInfo() {
+        document.getElementById('userInfo').style.display = 'none';
+    }
+
+    updateSyncStatus(status) {
+        document.getElementById('syncStatus').textContent = status;
     }
 
     bindEvents() {
@@ -42,6 +77,93 @@ class StockMonitor {
                 this.hideSearchResults();
             }
         });
+
+        // 登入相關事件
+        document.getElementById('loginBtn').addEventListener('click', () => {
+            this.handleLogin();
+        });
+
+        document.getElementById('skipAuth').addEventListener('click', () => {
+            this.skipAuth();
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            this.handleLogout();
+        });
+
+        document.getElementById('userEmail').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.handleLogin();
+            }
+        });
+    }
+
+    handleLogin() {
+        const email = document.getElementById('userEmail').value.trim();
+        
+        if (!email) {
+            this.showAuthStatus('請輸入 Email 地址', 'error');
+            return;
+        }
+
+        if (!this.isValidEmail(email)) {
+            this.showAuthStatus('請輸入有效的 Email 地址', 'error');
+            return;
+        }
+
+        this.showAuthStatus('🔄 登入中...', 'loading');
+
+        // 模擬登入過程 (實際應該連接到後端 API)
+        setTimeout(() => {
+            this.currentUser = email;
+            localStorage.setItem('currentUser', email);
+            
+            this.showUserInfo();
+            this.hideAuthSection();
+            this.loadStocks();
+            this.renderStocks();
+            
+            this.showAuthStatus('✅ 登入成功！', 'success');
+        }, 1500);
+    }
+
+    handleLogout() {
+        this.currentUser = null;
+        localStorage.removeItem('currentUser');
+        
+        // 保存當前股票到本地備份
+        this.saveToStorage();
+        
+        this.hideUserInfo();
+        this.showAuthSection();
+        
+        // 清空輸入框
+        document.getElementById('userEmail').value = '';
+        this.showAuthStatus('已登出', 'info');
+    }
+
+    skipAuth() {
+        this.hideAuthSection();
+        // 載入本地股票清單
+        this.stocks = JSON.parse(localStorage.getItem('monitoredStocks')) || [];
+        this.renderStocks();
+    }
+
+    isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
+    showAuthStatus(message, type = 'info') {
+        const statusElement = document.getElementById('authStatus');
+        statusElement.textContent = message;
+        statusElement.className = `auth-status ${type}`;
+        
+        if (type === 'success') {
+            setTimeout(() => {
+                statusElement.textContent = '';
+            }, 3000);
+        }
     }
 
     addStock(stockCode = null) {
@@ -99,8 +221,28 @@ class StockMonitor {
         this.renderStocks();
     }
 
+    loadStocks() {
+        if (this.currentUser) {
+            // 已登入：從雲端載入
+            const cloudKey = `stocks_${this.currentUser}`;
+            this.stocks = JSON.parse(localStorage.getItem(cloudKey)) || [];
+            this.updateSyncStatus('✅ 已從雲端同步');
+        } else {
+            // 未登入：從本地載入
+            this.stocks = JSON.parse(localStorage.getItem('monitoredStocks')) || [];
+        }
+    }
+
     saveToStorage() {
-        localStorage.setItem('monitoredStocks', JSON.stringify(this.stocks));
+        if (this.currentUser) {
+            // 已登入：同步到雲端
+            const cloudKey = `stocks_${this.currentUser}`;
+            localStorage.setItem(cloudKey, JSON.stringify(this.stocks));
+            this.updateSyncStatus('✅ 已同步到雲端');
+        } else {
+            // 未登入：只存本地
+            localStorage.setItem('monitoredStocks', JSON.stringify(this.stocks));
+        }
     }
 
     async fetchStockData(stockCode) {

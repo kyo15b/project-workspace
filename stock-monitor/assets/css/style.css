@@ -28,6 +28,151 @@ h2 {
     color: #34495e;
 }
 
+.auth-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 30px;
+    margin-bottom: 30px;
+    color: white;
+    text-align: center;
+}
+
+.auth-container h2 {
+    color: white;
+    margin-bottom: 10px;
+}
+
+.auth-description {
+    margin-bottom: 25px;
+    opacity: 0.9;
+    font-size: 15px;
+}
+
+.auth-form {
+    display: flex;
+    gap: 10px;
+    max-width: 400px;
+    margin: 0 auto 20px;
+}
+
+#userEmail {
+    flex: 1;
+    padding: 12px 15px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.auth-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    padding: 12px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.3s;
+    backdrop-filter: blur(10px);
+}
+
+.auth-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+}
+
+.skip-btn {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.skip-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.auth-status {
+    min-height: 20px;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+.auth-status.error {
+    color: #ff6b6b;
+}
+
+.auth-status.success {
+    color: #51cf66;
+}
+
+.auth-status.loading {
+    color: #74c0fc;
+}
+
+.auth-status.info {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.user-info {
+    background: #e8f5e8;
+    border: 1px solid #c3e6c3;
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.user-email {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    color: #2d5a2d;
+}
+
+.logout-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background-color 0.3s;
+}
+
+.logout-btn:hover {
+    background: #c82333;
+}
+
+.sync-status {
+    font-size: 13px;
+    color: #6c757d;
+}
+
+@media (max-width: 768px) {
+    .auth-form {
+        flex-direction: column;
+        max-width: none;
+    }
+    
+    .user-info {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
+    }
+}
+
 .config-section {
     background: white;
     padding: 20px;

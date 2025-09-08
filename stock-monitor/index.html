@@ -10,6 +10,31 @@
     <div class="container">
         <h1>股票監控面板</h1>
         
+        <!-- 登入區塊 -->
+        <div class="auth-section" id="authSection">
+            <div class="auth-container">
+                <h2>🔒 帳號同步</h2>
+                <p class="auth-description">登入後可在不同裝置間同步股票清單</p>
+                <div class="auth-form">
+                    <input type="email" id="userEmail" placeholder="輸入您的 Email">
+                    <button id="loginBtn" class="auth-btn">登入同步</button>
+                </div>
+                <div class="auth-status" id="authStatus"></div>
+                <button id="skipAuth" class="skip-btn">暫不登入，僅在本機使用</button>
+            </div>
+        </div>
+
+        <!-- 已登入用戶資訊 -->
+        <div class="user-info" id="userInfo" style="display: none;">
+            <div class="user-email">
+                <span>👤 </span><span id="currentUser"></span>
+                <button id="logoutBtn" class="logout-btn">登出</button>
+            </div>
+            <div class="sync-status">
+                <span id="syncStatus">🔄 同步中...</span>
+            </div>
+        </div>
+        
         <div class="config-section">
             <h2>設定監控股票</h2>
             <div class="search-container">
