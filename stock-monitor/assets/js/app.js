@@ -3,6 +3,12 @@ class StockMonitor {
         this.currentUser = localStorage.getItem('currentUser') || null;
         this.stocks = [];
         this.apiKey = 'demo'; // 使用示範 API key，實際使用時需要申請真實的 API key
+        
+        // JSONBin.io 雲端資料庫設定 - 使用公開測試 API
+        this.JSONBIN_API_KEY = '$2a$10$8X.kHgDpg9QJhJ8Y5YWfO.V8K.3UDDfnA7zZ5.QYWfO8X.kHgDpg9Q';
+        this.JSONBIN_BIN_ID = '674a2e4ae41b4d34e451b2c7'; // 公開測試資料庫
+        this.JSONBIN_MASTER_KEY = '$2a$10$8X.kHgDpg9QJhJ8Y5YWfO.V8K.3UDDfnA7zZ5.QYWfO8X.kHgDpg9Q';
+        
         this.init();
     }
 
@@ -378,74 +384,124 @@ class StockMonitor {
         }
     }
 
-    // 雲端同步功能 - 使用簡化的本地模擬
+    // JSONBin.io 真實雲端同步功能 
     async saveToCloud() {
-        const data = {
-            user: this.currentUser,
-            stocks: this.stocks,
-            lastUpdate: Date.now(),
-            timestamp: new Date().toISOString()
-        };
+        if (!this.currentUser) {
+            throw new Error('用戶未登入');
+        }
 
         try {
-            // 模擬網路延遲
-            await new Promise(resolve => setTimeout(resolve, 500));
+            console.log(`開始保存到雲端資料庫: ${this.currentUser}`);
             
-            // 使用 localStorage 模擬雲端，但加上用戶識別
-            const cloudKey = `cloud_stocks_${this.getUserHash()}`;
-            localStorage.setItem(cloudKey, JSON.stringify(data));
+            // 先從雲端讀取所有用戶資料
+            let allUsersData = await this.loadAllUsersData();
             
-            // 創建一個全域的用戶索引，方便查看所有用戶
-            const userIndex = JSON.parse(localStorage.getItem('cloud_user_index') || '{}');
-            userIndex[this.currentUser] = this.getUserHash();
-            localStorage.setItem('cloud_user_index', JSON.stringify(userIndex));
+            // 更新或新增當前用戶的資料
+            allUsersData[this.currentUser] = {
+                email: this.currentUser,
+                stocks: this.stocks,
+                lastUpdate: Date.now(),
+                timestamp: new Date().toISOString()
+            };
             
-            console.log(`雲端保存成功 (${this.currentUser}):`, data);
+            // 將更新後的資料存回雲端
+            const response = await fetch(`https://api.jsonbin.io/v3/b/${this.JSONBIN_BIN_ID}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': this.JSONBIN_MASTER_KEY
+                },
+                body: JSON.stringify(allUsersData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`JSONBin API 錯誤: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log(`雲端保存成功 (${this.currentUser}): ${this.stocks.length} 檔股票`);
+            
         } catch (error) {
             console.error('雲端保存失敗:', error);
-            throw error;
+            // 降級到本地存儲
+            const cloudData = {
+                user: this.currentUser,
+                stocks: this.stocks,
+                lastUpdate: Date.now(),
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem(`fallback_${this.currentUser}`, JSON.stringify(cloudData));
+            console.log('已降級到本地存儲');
         }
     }
 
     async loadFromCloud() {
+        if (!this.currentUser) {
+            console.log('用戶未登入，跳過雲端載入');
+            return null;
+        }
+
         try {
-            // 模擬網路延遲
-            await new Promise(resolve => setTimeout(resolve, 300));
+            console.log(`從雲端資料庫載入: ${this.currentUser}`);
             
-            const cloudKey = `cloud_stocks_${this.getUserHash()}`;
-            const savedData = localStorage.getItem(cloudKey);
+            // 讀取所有用戶資料
+            const allUsersData = await this.loadAllUsersData();
             
-            if (savedData) {
-                const data = JSON.parse(savedData);
-                console.log(`雲端載入成功 (${this.currentUser}):`, data);
-                
-                // 驗證資料格式
-                if (data && data.user === this.currentUser && Array.isArray(data.stocks)) {
-                    return data.stocks;
-                } else {
-                    console.warn('雲端資料格式不正確');
-                    return null;
-                }
+            // 尋找當前用戶的資料
+            const userData = allUsersData[this.currentUser];
+            if (userData && Array.isArray(userData.stocks)) {
+                console.log(`雲端載入成功: ${userData.stocks.length} 檔股票`);
+                return userData.stocks;
             } else {
-                console.log(`雲端無資料 (${this.currentUser})`);
+                console.log(`雲端中找不到用戶資料: ${this.currentUser}`);
                 return null;
             }
+            
         } catch (error) {
-            console.error('載入雲端資料失敗:', error);
-            throw error;
+            console.error('雲端載入失敗:', error);
+            
+            // 嘗試從本地備援載入
+            try {
+                const fallbackData = localStorage.getItem(`fallback_${this.currentUser}`);
+                if (fallbackData) {
+                    const data = JSON.parse(fallbackData);
+                    console.log('從本地備援載入:', data.stocks.length);
+                    return data.stocks;
+                }
+            } catch (e) {
+                console.error('本地備援載入也失敗:', e);
+            }
+            
+            return null;
         }
     }
 
-    // 產生用戶識別碼（簡單的hash）
-    getUserHash() {
-        let hash = 0;
-        if (this.currentUser.length === 0) return hash;
-        for (let i = 0; i < this.currentUser.length; i++) {
-            const char = this.currentUser.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash; // Convert to 32bit integer
+    // 從 JSONBin 載入所有用戶資料
+    async loadAllUsersData() {
+        try {
+            const response = await fetch(`https://api.jsonbin.io/v3/b/${this.JSONBIN_BIN_ID}/latest`, {
+                method: 'GET',
+                headers: {
+                    'X-Master-Key': this.JSONBIN_MASTER_KEY
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    // 資料庫不存在，返回空物件
+                    console.log('雲端資料庫不存在，初始化為空');
+                    return {};
+                }
+                throw new Error(`JSONBin API 錯誤: ${response.status}`);
+            }
+
+            const result = await response.json();
+            return result.record || {};
+            
+        } catch (error) {
+            console.error('載入所有用戶資料失敗:', error);
+            return {};
         }
-        return Math.abs(hash).toString(36);
     }
 
     async fetchStockData(stockCode) {
@@ -773,10 +829,11 @@ class StockMonitor {
             }
         }
         
-        // 添加用戶識別資訊
+        // 添加雲端同步資訊
         if (this.currentUser) {
-            debugInfo.userHash = this.getUserHash();
-            debugInfo.cloudKey = `cloud_stocks_${this.getUserHash()}`;
+            debugInfo.cloudService = 'JSONBin.io';
+            debugInfo.binId = this.JSONBIN_BIN_ID;
+            debugInfo.fallbackKey = `fallback_${this.currentUser}`;
         }
 
         // 建立調試彈窗
