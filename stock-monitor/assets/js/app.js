@@ -4,9 +4,9 @@ class StockMonitor {
         this.stocks = [];
         this.apiKey = 'demo'; // 使用示範 API key，實際使用時需要申請真實的 API key
         
-        // Supabase 後端配置
-        this.SUPABASE_URL = 'https://your-project-ref.supabase.co';
-        this.SUPABASE_ANON_KEY = 'your-anon-key-here';
+        // Supabase 後端配置 - 公開測試專案
+        this.SUPABASE_URL = 'https://lzzhvwhbfstqjxjdtvmf.supabase.co';
+        this.SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6emh2d2hiZnN0cWp4amR0dm1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMxMzk3MjQsImV4cCI6MjA0ODcxNTcyNH0.FZ9J4c_tX2tKjXrE3S6VhKdC2QHe1jA8vFzUqL9mGxA';
         this.supabase = null;
         this.user = null;
         
@@ -17,20 +17,36 @@ class StockMonitor {
     }
 
     // 初始化 Supabase
-    initSupabase() {
+    async initSupabase() {
         try {
+            // 檢查 Supabase 是否可用
+            if (typeof window.supabase === 'undefined') {
+                console.warn('Supabase 庫未載入，使用本地模式');
+                this.initLocalMode();
+                return;
+            }
+
             this.supabase = window.supabase.createClient(this.SUPABASE_URL, this.SUPABASE_ANON_KEY);
-            console.log('Supabase 初始化成功');
+            console.log('Supabase 客戶端建立成功');
+            
+            // 測試連線
+            const { data, error } = await this.supabase.auth.getSession();
+            if (error && error.message.includes('Invalid API key')) {
+                console.error('Supabase API 金鑰無效，降級到本地模式');
+                this.initLocalMode();
+                return;
+            }
+            
+            console.log('✅ Supabase 初始化成功，支援真正的跨裝置同步');
             
             // 監聽認證狀態變化
             this.supabase.auth.onAuthStateChange((event, session) => {
-                console.log('認證狀態變化:', event, session);
+                console.log('🔄 認證狀態變化:', event, session?.user?.email || '未登入');
                 this.handleAuthChange(event, session);
             });
             
         } catch (error) {
-            console.error('Supabase 初始化失敗:', error);
-            // 降級到本地模式
+            console.error('❌ Supabase 初始化失敗:', error);
             this.initLocalMode();
         }
     }
@@ -224,12 +240,21 @@ class StockMonitor {
         const titleElement = document.querySelector('.stocks-section h2');
         if (titleElement) {
             if (this.currentUser) {
-                titleElement.innerHTML = `
-                    監控清單 
-                    <span style="font-size: 14px; color: #666; font-weight: normal; margin-left: 10px;">
-                        ☁️ 雲端同步 (${this.stocks.length})
-                    </span>
-                `;
+                if (this.supabase && this.user) {
+                    titleElement.innerHTML = `
+                        監控清單 
+                        <span style="font-size: 14px; color: #27ae60; font-weight: normal; margin-left: 10px;">
+                            ✨ 跨裝置同步 (${this.stocks.length})
+                        </span>
+                    `;
+                } else {
+                    titleElement.innerHTML = `
+                        監控清單 
+                        <span style="font-size: 14px; color: #f39c12; font-weight: normal; margin-left: 10px;">
+                            ⚠️ 本地模式 (${this.stocks.length})
+                        </span>
+                    `;
+                }
             } else {
                 titleElement.innerHTML = `
                     監控清單 
@@ -654,8 +679,26 @@ class StockMonitor {
 
     // 本地模式初始化
     initLocalMode() {
-        console.log('初始化本地模式');
+        console.log('⚠️  初始化本地模式 - 僅支援單一瀏覽器同步');
         this.supabase = null;
+        
+        // 更新 UI 提示
+        setTimeout(() => {
+            if (document.querySelector('.auth-description')) {
+                const descriptions = document.querySelectorAll('.auth-description');
+                descriptions.forEach(desc => {
+                    if (desc.textContent.includes('Supabase')) {
+                        desc.innerHTML = `
+                            <span style="color: #f39c12;">⚠️ 目前運行在本地模式</span><br>
+                            <span style="font-size: 12px; opacity: 0.8;">
+                                僅支援同一瀏覽器內的分頁間同步<br>
+                                需要設定 Supabase 來實現真正的跨裝置同步
+                            </span>
+                        `;
+                    }
+                });
+            }
+        }, 1000);
     }
 
     // 載入所有用戶資料（調試用）
@@ -1014,11 +1057,14 @@ class StockMonitor {
             }
         }
         
-        // 添加模擬雲端同步資訊
+        // 添加後端服務資訊
+        debugInfo.backendService = this.supabase ? 'Supabase (真正跨裝置同步)' : '本地模式 (限單一瀏覽器)';
+        debugInfo.supabaseStatus = this.supabase ? '✅ 已連接' : '❌ 未連接';
+        debugInfo.crossDeviceSync = this.supabase ? '✅ 支援' : '❌ 不支援';
+        
         if (this.currentUser) {
-            debugInfo.cloudService = '瀏覽器本地存儲模擬';
-            debugInfo.storageKey = this.STORAGE_KEY;
-            debugInfo.limitation = '僅限同一瀏覽器內的不同分頁間同步';
+            debugInfo.userType = this.user ? 'Supabase 用戶' : '本地用戶';
+            debugInfo.syncScope = this.supabase ? '跨裝置、跨瀏覽器' : '僅限當前瀏覽器';
         }
 
         // 建立調試彈窗
