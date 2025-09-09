@@ -4,20 +4,76 @@ class StockMonitor {
         this.stocks = [];
         this.apiKey = 'demo'; // 使用示範 API key，實際使用時需要申請真實的 API key
         
-        // 模擬雲端存儲設定
-        this.STORAGE_KEY = 'stock_monitor_shared_data';
-        this.CLOUD_ENABLED = true;
+        // Supabase 後端配置
+        this.SUPABASE_URL = 'https://your-project-ref.supabase.co';
+        this.SUPABASE_ANON_KEY = 'your-anon-key-here';
+        this.supabase = null;
+        this.user = null;
+        
+        // 初始化 Supabase
+        this.initSupabase();
         
         this.init();
     }
 
+    // 初始化 Supabase
+    initSupabase() {
+        try {
+            this.supabase = window.supabase.createClient(this.SUPABASE_URL, this.SUPABASE_ANON_KEY);
+            console.log('Supabase 初始化成功');
+            
+            // 監聽認證狀態變化
+            this.supabase.auth.onAuthStateChange((event, session) => {
+                console.log('認證狀態變化:', event, session);
+                this.handleAuthChange(event, session);
+            });
+            
+        } catch (error) {
+            console.error('Supabase 初始化失敗:', error);
+            // 降級到本地模式
+            this.initLocalMode();
+        }
+    }
+
+    // 認證狀態變化處理
+    async handleAuthChange(event, session) {
+        if (session && session.user) {
+            this.user = session.user;
+            this.currentUser = session.user.email;
+            localStorage.setItem('currentUser', this.currentUser);
+            
+            // 載入用戶股票
+            await this.loadStocks();
+            this.renderStocks();
+            this.showUserInfo();
+            this.hideAuthSection();
+            
+        } else {
+            this.user = null;
+            this.currentUser = null;
+            localStorage.removeItem('currentUser');
+            
+            this.showAuthSection();
+            this.hideUserInfo();
+        }
+    }
+
     async init() {
         console.log('應用程式初始化開始...');
+        
+        // 等待 Supabase 初始化完成
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         this.initAuth();
         this.bindEvents();
         await this.initStockDatabase();
-        await this.loadStocks();
-        this.renderStocks();
+        
+        // 如果沒有用戶認證，手動載入本地股票
+        if (!this.user) {
+            await this.loadStocks();
+            this.renderStocks();
+        }
+        
         this.startAutoRefresh();
         console.log('應用程式初始化完成');
     }
@@ -237,7 +293,7 @@ class StockMonitor {
         });
     }
 
-    handleLogin() {
+    async handleLogin() {
         const email = document.getElementById('userEmail').value.trim();
         
         if (!email) {
@@ -250,50 +306,84 @@ class StockMonitor {
             return;
         }
 
-        this.showAuthStatus('🔄 登入中...', 'loading');
+        this.showAuthStatus('🔄 發送登入連結中...', 'loading');
 
-        // 模擬登入過程 (實際應該連接到後端 API)
-        setTimeout(async () => {
-            try {
-                // 先保存當前本地股票清單
-                const currentLocalStocks = [...this.stocks];
-                console.log(`登入前本地股票:`, currentLocalStocks);
+        try {
+            if (this.supabase) {
+                // 使用 Supabase Magic Link 登入
+                const { data, error } = await this.supabase.auth.signInWithOtp({
+                    email: email,
+                    options: {
+                        shouldCreateUser: true
+                    }
+                });
+
+                if (error) {
+                    throw error;
+                }
+
+                this.showAuthStatus('✅ 登入連結已發送到您的信箱！請檢查郵件並點擊連結完成登入。', 'success');
                 
-                // 設定當前使用者
-                this.currentUser = email;
-                localStorage.setItem('currentUser', email);
-                console.log(`設定使用者: ${email}`);
-                
-                // 載入雲端股票
-                await this.loadStocks();
-                
-                this.showUserInfo();
-                this.hideAuthSection();
-                this.renderStocks();
-                
-                this.showAuthStatus('✅ 登入成功！', 'success');
-            } catch (error) {
-                console.error('登入過程發生錯誤:', error);
-                this.showAuthStatus('❌ 登入失敗，請重試', 'error');
-                this.currentUser = null;
-                localStorage.removeItem('currentUser');
+            } else {
+                // 降級到本地模式
+                this.handleLocalLogin(email);
             }
-        }, 1500);
+            
+        } catch (error) {
+            console.error('登入失敗:', error);
+            this.showAuthStatus(`❌ 登入失敗: ${error.message}`, 'error');
+            
+            // 降級到本地模式
+            this.handleLocalLogin(email);
+        }
     }
 
-    handleLogout() {
-        this.currentUser = null;
-        localStorage.removeItem('currentUser');
+    // 本地模式登入（降級方案）
+    async handleLocalLogin(email) {
+        console.log('使用本地模式登入:', email);
         
-        // 保存當前股票到本地備份
-        this.saveToStorage();
+        this.showAuthStatus('🔄 本地模式登入中...', 'loading');
         
-        this.hideUserInfo();
-        this.showAuthSection();
-        
-        // 清空輸入框
-        document.getElementById('userEmail').value = '';
-        this.showAuthStatus('已登出', 'info');
+        setTimeout(async () => {
+            this.currentUser = email;
+            localStorage.setItem('currentUser', email);
+            
+            await this.loadStocks();
+            this.showUserInfo();
+            this.hideAuthSection();
+            this.renderStocks();
+            
+            this.showAuthStatus('✅ 本地模式登入成功 (限本瀏覽器)', 'success');
+        }, 1000);
+    }
+
+    async handleLogout() {
+        try {
+            if (this.supabase && this.user) {
+                // Supabase 登出
+                await this.supabase.auth.signOut();
+                console.log('Supabase 登出成功');
+            } else {
+                // 本地模式登出
+                this.currentUser = null;
+                localStorage.removeItem('currentUser');
+                
+                this.hideUserInfo();
+                this.showAuthSection();
+                
+                // 清空股票列表
+                this.stocks = [];
+                this.renderStocks();
+            }
+            
+            // 清空輸入框
+            document.getElementById('userEmail').value = '';
+            this.showAuthStatus('已登出', 'info');
+            
+        } catch (error) {
+            console.error('登出失敗:', error);
+            this.showAuthStatus('登出時發生錯誤', 'error');
+        }
     }
 
     skipAuth() {
@@ -463,112 +553,137 @@ class StockMonitor {
         }
     }
 
-    // 強化的模擬雲端同步 - 使用統一共享存儲
+    // Supabase 雲端同步功能
     async saveToCloud() {
         if (!this.currentUser) {
             throw new Error('用戶未登入');
         }
 
         try {
-            console.log(`開始保存到模擬雲端: ${this.currentUser}`);
-            
-            // 模擬網路延遲
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // 從模擬雲端讀取所有用戶資料
-            let allUsersData = this.getSharedCloudData();
-            
-            // 更新當前用戶資料
-            allUsersData[this.currentUser] = {
-                email: this.currentUser,
-                stocks: this.stocks,
-                lastUpdate: Date.now(),
-                timestamp: new Date().toISOString(),
-                deviceInfo: this.getDeviceInfo()
-            };
-            
-            // 存回模擬雲端（使用統一的 key）
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(allUsersData));
-            
-            // 也存到 sessionStorage 作為跨分頁共享
-            sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(allUsersData));
-            
-            console.log(`模擬雲端保存成功 (${this.currentUser}): ${this.stocks.length} 檔股票`);
+            if (this.supabase && this.user) {
+                console.log(`開始保存到 Supabase: ${this.currentUser}`);
+                
+                const stockData = {
+                    user_id: this.user.id,
+                    email: this.currentUser,
+                    stocks: JSON.stringify(this.stocks),
+                    updated_at: new Date().toISOString()
+                };
+
+                // 使用 upsert 更新或插入用戶股票資料
+                const { data, error } = await this.supabase
+                    .from('user_stocks')
+                    .upsert(stockData, { 
+                        onConflict: 'user_id',
+                        returning: 'minimal'
+                    });
+
+                if (error) {
+                    throw error;
+                }
+
+                console.log(`Supabase 保存成功: ${this.stocks.length} 檔股票`);
+                
+            } else {
+                // 降級到本地存儲
+                console.log('Supabase 不可用，使用本地存儲');
+                localStorage.setItem('monitoredStocks', JSON.stringify(this.stocks));
+                localStorage.setItem(`user_stocks_${this.currentUser}`, JSON.stringify({
+                    stocks: this.stocks,
+                    updated_at: new Date().toISOString()
+                }));
+            }
             
         } catch (error) {
-            console.error('模擬雲端保存失敗:', error);
+            console.error('雲端保存失敗:', error);
+            // 降級到本地存儲
+            localStorage.setItem('monitoredStocks', JSON.stringify(this.stocks));
             throw error;
         }
     }
 
     async loadFromCloud() {
         if (!this.currentUser) {
-            console.log('用戶未登入，跳過雲端載入');
-            return null;
+            console.log('用戶未登入，載入本地股票');
+            const localStocks = JSON.parse(localStorage.getItem('monitoredStocks')) || [];
+            return localStocks;
         }
 
         try {
-            console.log(`從模擬雲端載入: ${this.currentUser}`);
-            
-            // 模擬網路延遲
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-            // 從模擬雲端讀取資料
-            const allUsersData = this.getSharedCloudData();
-            
-            // 尋找當前用戶的資料
-            const userData = allUsersData[this.currentUser];
-            if (userData && Array.isArray(userData.stocks)) {
-                console.log(`模擬雲端載入成功: ${userData.stocks.length} 檔股票`);
-                console.log('資料詳情:', userData);
-                return userData.stocks;
+            if (this.supabase && this.user) {
+                console.log(`從 Supabase 載入: ${this.currentUser}`);
+                
+                const { data, error } = await this.supabase
+                    .from('user_stocks')
+                    .select('stocks, updated_at')
+                    .eq('user_id', this.user.id)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+                    throw error;
+                }
+
+                if (data && data.stocks) {
+                    const stocks = JSON.parse(data.stocks);
+                    console.log(`Supabase 載入成功: ${stocks.length} 檔股票`);
+                    console.log('最後更新時間:', data.updated_at);
+                    return stocks;
+                } else {
+                    console.log('Supabase 中找不到用戶股票資料');
+                    return null;
+                }
+                
             } else {
-                console.log(`模擬雲端中找不到用戶資料: ${this.currentUser}`);
-                return null;
+                // 降級到本地存儲
+                console.log('Supabase 不可用，使用本地存儲');
+                const localData = localStorage.getItem(`user_stocks_${this.currentUser}`);
+                if (localData) {
+                    const parsed = JSON.parse(localData);
+                    return parsed.stocks || [];
+                }
+                return JSON.parse(localStorage.getItem('monitoredStocks')) || [];
             }
             
         } catch (error) {
-            console.error('模擬雲端載入失敗:', error);
-            return null;
+            console.error('雲端載入失敗:', error);
+            // 降級到本地存儲
+            const localStocks = JSON.parse(localStorage.getItem('monitoredStocks')) || [];
+            return localStocks;
         }
     }
 
-    // 獲取共享雲端資料
-    getSharedCloudData() {
-        // 優先從 sessionStorage 讀取（跨分頁共享）
-        let data = sessionStorage.getItem(this.STORAGE_KEY);
-        if (!data) {
-            // 備援從 localStorage 讀取
-            data = localStorage.getItem(this.STORAGE_KEY);
-        }
-        
-        if (data) {
-            try {
-                const parsed = JSON.parse(data);
-                console.log('讀取共享雲端資料:', Object.keys(parsed));
-                return parsed;
-            } catch (e) {
-                console.error('解析共享雲端資料失敗:', e);
-            }
-        }
-        
-        console.log('共享雲端資料不存在，返回空物件');
-        return {};
+    // 本地模式初始化
+    initLocalMode() {
+        console.log('初始化本地模式');
+        this.supabase = null;
     }
 
-    // 獲取設備資訊（用於調試）
-    getDeviceInfo() {
-        return {
-            userAgent: navigator.userAgent.substring(0, 100),
-            platform: navigator.platform,
-            language: navigator.language,
-            timestamp: new Date().toISOString()
-        };
-    }
-
-    // 載入所有用戶資料（用於調試和管理）
+    // 載入所有用戶資料（調試用）
     async loadAllUsersData() {
-        return this.getSharedCloudData();
+        try {
+            if (this.supabase) {
+                const { data, error } = await this.supabase
+                    .from('user_stocks')
+                    .select('email, updated_at, stocks');
+                
+                if (error) throw error;
+                
+                const result = {};
+                data.forEach(row => {
+                    result[row.email] = {
+                        stocks: JSON.parse(row.stocks || '[]'),
+                        updated_at: row.updated_at
+                    };
+                });
+                
+                return result;
+            } else {
+                return { [this.currentUser]: { stocks: this.stocks } };
+            }
+        } catch (error) {
+            console.error('載入用戶資料失敗:', error);
+            return {};
+        }
     }
 
     async fetchStockData(stockCode) {
