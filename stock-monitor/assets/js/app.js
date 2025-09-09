@@ -10,6 +10,9 @@ class StockMonitor {
         this.supabase = null;
         this.user = null;
         
+        // 錯誤管理系統
+        this.errorManager = new ErrorManager();
+        
         // 初始化 Supabase
         this.initSupabase();
         
@@ -47,6 +50,7 @@ class StockMonitor {
             
         } catch (error) {
             console.error('❌ Supabase 初始化失敗:', error);
+            this.errorManager.logError(error, 'initSupabase', '初始化 Supabase 連接');
             this.initLocalMode();
         }
     }
@@ -356,6 +360,7 @@ class StockMonitor {
             
         } catch (error) {
             console.error('登入失敗:', error);
+            this.errorManager.logError(error, 'login', '用戶登入');
             this.showAuthStatus(`❌ 登入失敗: ${error.message}`, 'error');
             
             // 降級到本地模式
@@ -1335,6 +1340,253 @@ class StockMonitor {
                 this.renderStocks();
             }
         }, 30000);
+    }
+}
+
+// 錯誤管理系統
+class ErrorManager {
+    constructor() {
+        this.errorLog = [];
+        this.createErrorUI();
+    }
+
+    // 創建錯誤顯示界面
+    createErrorUI() {
+        // 錯誤通知容器
+        if (!document.getElementById('errorContainer')) {
+            const errorContainer = document.createElement('div');
+            errorContainer.id = 'errorContainer';
+            errorContainer.className = 'error-container';
+            document.body.appendChild(errorContainer);
+        }
+
+        // 錯誤回報按鈕
+        if (!document.getElementById('errorReportBtn')) {
+            const reportBtn = document.createElement('button');
+            reportBtn.id = 'errorReportBtn';
+            reportBtn.className = 'error-report-btn';
+            reportBtn.innerHTML = '🐛 回報問題';
+            reportBtn.title = '回報技術問題給管理員';
+            reportBtn.onclick = () => this.showErrorReport();
+            document.body.appendChild(reportBtn);
+        }
+    }
+
+    // 記錄錯誤
+    logError(error, context = '', userAction = '') {
+        const errorInfo = {
+            timestamp: new Date().toISOString(),
+            message: error.message || error,
+            stack: error.stack || '',
+            context: context,
+            userAction: userAction,
+            userAgent: navigator.userAgent,
+            url: window.location.href,
+            userId: stockMonitor?.currentUser || 'anonymous'
+        };
+
+        this.errorLog.push(errorInfo);
+        console.error('🐛 錯誤記錄:', errorInfo);
+
+        // 顯示用戶友好的錯誤訊息
+        this.showUserError(this.getUserFriendlyMessage(error, context));
+
+        // 自動上傳嚴重錯誤
+        if (this.isCriticalError(error)) {
+            this.reportError(errorInfo);
+        }
+
+        return errorInfo;
+    }
+
+    // 轉換為用戶友好的錯誤訊息
+    getUserFriendlyMessage(error, context) {
+        const message = error.message || error.toString();
+        
+        if (message.includes('Failed to fetch') || message.includes('Network')) {
+            return '網路連線異常，請檢查網路設定後重試';
+        }
+        
+        if (message.includes('Invalid API key') || message.includes('Unauthorized')) {
+            return '登入認證失敗，系統已切換到本地模式';
+        }
+        
+        if (message.includes('CORS')) {
+            return '資料來源暫時無法存取，正在嘗試備援方案';
+        }
+        
+        if (context.includes('stock')) {
+            return '股票資料載入失敗，請稍後重試';
+        }
+        
+        if (context.includes('login') || context.includes('auth')) {
+            return '登入過程發生問題，請重新登入';
+        }
+        
+        return `系統發生問題：${message}`;
+    }
+
+    // 顯示用戶友好的錯誤訊息
+    showUserError(message, type = 'error', duration = 5000) {
+        const errorContainer = document.getElementById('errorContainer');
+        const errorDiv = document.createElement('div');
+        errorDiv.className = `error-notification ${type}`;
+        
+        const icon = type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+        
+        errorDiv.innerHTML = `
+            <div class="error-content">
+                <span class="error-icon">${icon}</span>
+                <span class="error-message">${message}</span>
+                <button class="error-close" onclick="this.parentElement.parentElement.remove()">&times;</button>
+            </div>
+        `;
+
+        errorContainer.appendChild(errorDiv);
+
+        // 自動移除
+        if (duration > 0) {
+            setTimeout(() => {
+                if (errorDiv.parentNode) {
+                    errorDiv.remove();
+                }
+            }, duration);
+        }
+    }
+
+    // 判斷是否為嚴重錯誤
+    isCriticalError(error) {
+        const criticalKeywords = [
+            'supabase',
+            'authentication',
+            'database',
+            'cors',
+            'invalid api key'
+        ];
+
+        const errorText = (error.message || error.toString()).toLowerCase();
+        return criticalKeywords.some(keyword => errorText.includes(keyword));
+    }
+
+    // 顯示錯誤回報界面
+    showErrorReport() {
+        const recentErrors = this.errorLog.slice(-3); // 最近3個錯誤
+        
+        const modal = document.createElement('div');
+        modal.className = 'error-report-modal';
+        modal.innerHTML = `
+            <div class="error-report-content">
+                <h3>🐛 問題回報</h3>
+                <p>請描述您遇到的問題，幫助我們改善系統：</p>
+                
+                <textarea id="errorDescription" placeholder="請描述您在做什麼時遇到問題，例如：點擊登入按鈕時頁面沒反應..." rows="4"></textarea>
+                
+                <div class="error-details">
+                    <h4>📊 系統狀態：</h4>
+                    <div class="system-status">
+                        <div>🔗 後端連線: ${stockMonitor?.supabase ? '✅ 已連接' : '❌ 未連接'}</div>
+                        <div>👤 登入狀態: ${stockMonitor?.currentUser ? '✅ 已登入' : '❌ 未登入'}</div>
+                        <div>📈 監控股票: ${stockMonitor?.stocks?.length || 0} 檔</div>
+                        <div>🌐 瀏覽器: ${navigator.userAgent.split(' ').pop()}</div>
+                    </div>
+                </div>
+                
+                ${recentErrors.length > 0 ? `
+                <div class="recent-errors">
+                    <h4>🔍 最近錯誤：</h4>
+                    <div class="error-list">
+                        ${recentErrors.map(err => `
+                            <div class="error-item">
+                                <strong>${err.timestamp.split('T')[1].split('.')[0]}</strong>: ${err.message}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+                
+                <div class="error-report-actions">
+                    <button onclick="this.closest('.error-report-modal').remove()" class="btn-cancel">取消</button>
+                    <button onclick="stockMonitor.errorManager.submitErrorReport()" class="btn-submit">送出回報</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        
+        // 點擊外部關閉
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.remove();
+        });
+    }
+
+    // 提交錯誤回報
+    async submitErrorReport() {
+        const description = document.getElementById('errorDescription').value;
+        
+        if (!description.trim()) {
+            this.showUserError('請描述您遇到的問題', 'warning');
+            return;
+        }
+
+        const reportData = {
+            description: description,
+            timestamp: new Date().toISOString(),
+            userId: stockMonitor?.currentUser || 'anonymous',
+            systemInfo: {
+                userAgent: navigator.userAgent,
+                url: window.location.href,
+                supabaseStatus: stockMonitor?.supabase ? '已連接' : '未連接',
+                stockCount: stockMonitor?.stocks?.length || 0,
+                recentErrors: this.errorLog.slice(-3)
+            }
+        };
+
+        try {
+            await this.reportError(reportData);
+            this.showUserError('問題已成功回報，感謝您的反饋！我們會盡快處理', 'info');
+            document.querySelector('.error-report-modal').remove();
+            
+        } catch (error) {
+            console.error('回報失敗:', error);
+            
+            // 備援：複製到剪貼板
+            try {
+                await navigator.clipboard.writeText(JSON.stringify(reportData, null, 2));
+                this.showUserError('自動回報失敗，已複製問題資訊到剪貼板，請貼到聯絡管理員', 'warning', 8000);
+            } catch (clipError) {
+                this.showUserError('回報失敗，請截圖此頁面聯絡管理員', 'error', 10000);
+            }
+        }
+    }
+
+    // 發送錯誤回報到後端
+    async reportError(errorData) {
+        if (stockMonitor?.supabase) {
+            try {
+                // 嘗試儲存到 user_stocks_history 表作為特殊記錄
+                const { error } = await stockMonitor.supabase
+                    .from('user_stocks_history')
+                    .insert([{
+                        user_id: stockMonitor.user?.id || null,
+                        stocks_snapshot: JSON.stringify(errorData),
+                        action: 'error_report',
+                        stock_code: 'SYSTEM_ERROR'
+                    }]);
+                
+                if (!error) {
+                    console.log('✅ 錯誤回報已發送到後端');
+                    return;
+                }
+            } catch (supabaseError) {
+                console.warn('Supabase 錯誤回報失敗:', supabaseError);
+            }
+        }
+        
+        // 備援：存儲到本地等待同步
+        const pendingReports = JSON.parse(localStorage.getItem('pendingErrorReports') || '[]');
+        pendingReports.push(errorData);
+        localStorage.setItem('pendingErrorReports', JSON.stringify(pendingReports));
+        console.log('📝 錯誤報告已存儲到本地，等待後續同步');
     }
 }
 
