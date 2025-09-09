@@ -47,6 +47,20 @@ const STOCK_DATA = {
     '1216': { name: '統一', fullName: '統一企業股份有限公司', category: '食品' },
     '1101': { name: '台泥', fullName: '台灣水泥股份有限公司', category: '水泥' },
     '2912': { name: '統一超', fullName: '統一超商股份有限公司', category: '貿易百貨' },
+
+    // 大盤指數
+    'TAIEX': { name: '加權指數', fullName: '台灣證券交易所發行量加權股價指數', category: '指數', symbol: 'TWSE:TAIEX' },
+    'OTC': { name: '櫃買指數', fullName: '櫃檯買賣中心指數', category: '指數', symbol: 'TWSE:OTC' },
+    'TPEx': { name: '興櫃指數', fullName: '興櫃股票指數', category: '指數', symbol: 'TWSE:TPEx' },
+    'MSE': { name: '電子指數', fullName: '電子類股指數', category: '指數', symbol: 'TWSE:MSE' },
+    'TPEX': { name: '櫃檯指數', fullName: '櫃檯買賣指數', category: '指數', symbol: 'TWSE:TPEX' },
+
+    // 期貨商品
+    'TX': { name: '台指期', fullName: '臺灣證券交易所股價指數期貨', category: '期貨', symbol: 'TAIFEX:TX1!' },
+    'MTX': { name: '小台指期', fullName: '小型臺灣證券交易所股價指數期貨', category: '期貨', symbol: 'TAIFEX:MTX1!' },
+    'TXO': { name: '台指選擇權', fullName: '臺灣證券交易所股價指數選擇權', category: '選擇權', symbol: 'TAIFEX:TXO' },
+    'TE': { name: '電子期', fullName: '電子類股指數期貨', category: '期貨', symbol: 'TAIFEX:TE1!' },
+    'TF': { name: '金融期', fullName: '金融保險類股指數期貨', category: '期貨', symbol: 'TAIFEX:TF1!' },
     
     // 其他重要個股
     '2603': { name: '長榮', fullName: '長榮海運股份有限公司', category: '航運' },
@@ -86,6 +100,41 @@ function createSearchIndex() {
         // 以公司全名關鍵字為鍵
         const fullNameKey = info.fullName.toLowerCase();
         searchIndex[fullNameKey] = stockEntry;
+        
+        // 特殊關鍵字映射（大盤、期貨等）
+        if (info.category === '指數') {
+            // 大盤指數的別名映射
+            const indexAliases = {
+                'TAIEX': ['大盤', '加權', '加權指數', '台股指數'],
+                'OTC': ['櫃買', '櫃買指數'],
+                'TPEx': ['興櫃', '興櫃指數'],
+                'MSE': ['電子', '電子指數'],
+                'TPEX': ['櫃檯', '櫃檯指數']
+            };
+            
+            if (indexAliases[code]) {
+                indexAliases[code].forEach(alias => {
+                    searchIndex[alias] = stockEntry;
+                });
+            }
+        }
+        
+        if (info.category === '期貨' || info.category === '選擇權') {
+            // 期貨商品的別名映射
+            const futuresAliases = {
+                'TX': ['台指期', '大台', '台指'],
+                'MTX': ['小台', '小台指', '迷你台指'],
+                'TXO': ['台指選擇權', '選擇權'],
+                'TE': ['電子期', '電子期貨'],
+                'TF': ['金融期', '金融期貨']
+            };
+            
+            if (futuresAliases[code]) {
+                futuresAliases[code].forEach(alias => {
+                    searchIndex[alias] = stockEntry;
+                });
+            }
+        }
     });
     
     return searchIndex;

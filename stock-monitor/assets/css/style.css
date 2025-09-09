@@ -420,6 +420,16 @@ h2 {
     justify-self: center;
 }
 
+.data-source {
+    font-size: 10px;
+    color: #7f8c8d;
+    background: #ecf0f1;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-left: 5px;
+    display: inline-block;
+}
+
 .price-up {
     color: #27ae60;
 }

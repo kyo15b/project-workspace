@@ -731,8 +731,14 @@ class StockMonitor {
 
     async fetchStockData(stockCode) {
         try {
-            // 使用台股 API（這裡使用模擬資料，實際應用需要接入真實 API）
-            // 實際可使用的 API: Yahoo Finance, Alpha Vantage, 或台灣證交所 API
+            // 優先使用真實 API，失敗後使用模擬資料
+            const realData = await this.fetchRealStockData(stockCode);
+            if (realData) {
+                return realData;
+            }
+            
+            // 備援：使用模擬資料
+            console.warn(`無法獲取 ${stockCode} 的真實股價，使用模擬資料`);
             const response = await this.simulateApiCall(stockCode);
             return response;
         } catch (error) {
@@ -741,7 +747,169 @@ class StockMonitor {
         }
     }
 
-    // 模擬 API 呼叫（實際應用中應替換為真實 API）
+    // 獲取真實股價數據
+    async fetchRealStockData(stockCode) {
+        const endpoints = [
+            // Yahoo Finance API (免費，較穩定)
+            () => this.fetchFromYahooFinance(stockCode),
+            // 台灣證交所 API
+            () => this.fetchFromTWSE(stockCode),
+            // 櫃買中心 API
+            () => this.fetchFromTPEX(stockCode)
+        ];
+
+        for (const endpoint of endpoints) {
+            try {
+                const data = await endpoint();
+                if (data) {
+                    return data;
+                }
+            } catch (error) {
+                console.log(`API 端點失敗，嘗試下一個: ${error.message}`);
+            }
+        }
+
+        return null;
+    }
+
+    // Yahoo Finance API
+    async fetchFromYahooFinance(stockCode) {
+        try {
+            // 根據商品類型確定 symbol 格式
+            const stockInfo = this.getStockInfo ? this.getStockInfo(stockCode) : getStockInfo(stockCode);
+            let symbol;
+            
+            if (stockInfo.symbol) {
+                // 使用預設的 TradingView symbol
+                symbol = stockInfo.symbol.replace('TWSE:', '').replace('TAIFEX:', '');
+                if (stockInfo.category === '指數') {
+                    symbol = `^${symbol}`;
+                } else if (stockInfo.category === '期貨' || stockInfo.category === '選擇權') {
+                    symbol = `${symbol}=F`;
+                } else {
+                    symbol = `${symbol}.TW`;
+                }
+            } else {
+                // 一般台股格式: 2330.TW
+                symbol = `${stockCode}.TW`;
+            }
+            
+            const corsProxy = 'https://api.allorigins.win/get?url=';
+            const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}`;
+            
+            const response = await fetch(`${corsProxy}${encodeURIComponent(yahooUrl)}`);
+            const data = await response.json();
+            const content = JSON.parse(data.contents);
+            
+            if (content.chart && content.chart.result && content.chart.result[0]) {
+                const result = content.chart.result[0];
+                const meta = result.meta;
+                const quote = result.indicators.quote[0];
+                
+                const stockInfo = this.getStockInfo ? this.getStockInfo(stockCode) : getStockInfo(stockCode);
+                
+                return {
+                    code: stockCode,
+                    name: stockInfo.name,
+                    fullName: stockInfo.fullName,
+                    category: stockInfo.category,
+                    price: meta.regularMarketPrice ? meta.regularMarketPrice.toFixed(2) : 'N/A',
+                    change: meta.regularMarketPrice && meta.previousClose ? 
+                        (meta.regularMarketPrice - meta.previousClose).toFixed(2) : 'N/A',
+                    changePercent: meta.regularMarketPrice && meta.previousClose ? 
+                        (((meta.regularMarketPrice - meta.previousClose) / meta.previousClose) * 100).toFixed(2) : 'N/A',
+                    volume: meta.regularMarketVolume ? meta.regularMarketVolume.toLocaleString() : 'N/A',
+                    high: meta.regularMarketDayHigh ? meta.regularMarketDayHigh.toFixed(2) : 'N/A',
+                    low: meta.regularMarketDayLow ? meta.regularMarketDayLow.toFixed(2) : 'N/A',
+                    open: quote.open && quote.open.length > 0 ? 
+                        quote.open[quote.open.length - 1].toFixed(2) : 'N/A',
+                    timestamp: new Date().toLocaleTimeString(),
+                    source: 'Yahoo Finance'
+                };
+            }
+        } catch (error) {
+            console.error('Yahoo Finance API 失敗:', error);
+        }
+        return null;
+    }
+
+    // 台灣證交所 API
+    async fetchFromTWSE(stockCode) {
+        try {
+            const today = new Date().toISOString().slice(0, 7).replace('-', ''); // YYYYMM
+            const corsProxy = 'https://api.allorigins.win/get?url=';
+            const twseUrl = `https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=${today}01&stockNo=${stockCode}`;
+            
+            const response = await fetch(`${corsProxy}${encodeURIComponent(twseUrl)}`);
+            const data = await response.json();
+            const content = JSON.parse(data.contents);
+            
+            if (content.stat === 'OK' && content.data && content.data.length > 0) {
+                const latestData = content.data[content.data.length - 1];
+                const stockInfo = this.getStockInfo ? this.getStockInfo(stockCode) : getStockInfo(stockCode);
+                
+                return {
+                    code: stockCode,
+                    name: stockInfo.name,
+                    fullName: stockInfo.fullName,
+                    category: stockInfo.category,
+                    price: latestData[6], // 收盤價
+                    change: latestData[7], // 漲跌價差
+                    changePercent: ((parseFloat(latestData[7]) / parseFloat(latestData[6])) * 100).toFixed(2),
+                    volume: latestData[1], // 成交股數
+                    high: latestData[4], // 最高價
+                    low: latestData[5], // 最低價
+                    open: latestData[3], // 開盤價
+                    timestamp: new Date().toLocaleTimeString(),
+                    source: 'TWSE'
+                };
+            }
+        } catch (error) {
+            console.error('TWSE API 失敗:', error);
+        }
+        return null;
+    }
+
+    // 櫃買中心 API
+    async fetchFromTPEX(stockCode) {
+        try {
+            const today = new Date();
+            const year = today.getFullYear() - 1911; // 民國年
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const corsProxy = 'https://api.allorigins.win/get?url=';
+            const tpexUrl = `https://www.tpex.org.tw/web/stock/aftertrading/otc_quotes_no1430/stk_wn1430_result.php?l=zh-tw&d=${year}/${month}&stkno=${stockCode}`;
+            
+            const response = await fetch(`${corsProxy}${encodeURIComponent(tpexUrl)}`);
+            const data = await response.json();
+            const content = JSON.parse(data.contents);
+            
+            if (content.aaData && content.aaData.length > 0) {
+                const latestData = content.aaData[content.aaData.length - 1];
+                const stockInfo = this.getStockInfo ? this.getStockInfo(stockCode) : getStockInfo(stockCode);
+                
+                return {
+                    code: stockCode,
+                    name: stockInfo.name,
+                    fullName: stockInfo.fullName,
+                    category: stockInfo.category,
+                    price: latestData[2], // 收盤價
+                    change: latestData[3], // 漲跌
+                    changePercent: latestData[4], // 漲跌%
+                    volume: latestData[6], // 成交量
+                    high: latestData[8], // 最高價
+                    low: latestData[9], // 最低價
+                    open: latestData[7], // 開盤價
+                    timestamp: new Date().toLocaleTimeString(),
+                    source: 'TPEX'
+                };
+            }
+        } catch (error) {
+            console.error('TPEX API 失敗:', error);
+        }
+        return null;
+    }
+
+    // 模擬 API 呼叫（備援方案）
     async simulateApiCall(stockCode) {
         return new Promise((resolve) => {
             setTimeout(() => {
@@ -765,7 +933,8 @@ class StockMonitor {
                     high: (basePrice + Math.random() * 10).toFixed(2),
                     low: (basePrice - Math.random() * 10).toFixed(2),
                     open: (basePrice + (Math.random() - 0.5) * 5).toFixed(2),
-                    timestamp: new Date().toLocaleTimeString()
+                    timestamp: new Date().toLocaleTimeString(),
+                    source: '模擬數據'
                 });
             }, 1000);
         });
@@ -829,7 +998,10 @@ class StockMonitor {
                     <span class="stock-data-value">$${stockData.open}</span>
                 </div>
                 
-                <div class="stock-timestamp">${stockData.timestamp}</div>
+                <div class="stock-timestamp">
+                    ${stockData.timestamp}
+                    ${stockData.source ? `<span class="data-source" title="數據來源">[${stockData.source}]</span>` : ''}
+                </div>
                 
                 <div class="stock-actions">
                     <button class="chart-btn" onclick="event.stopPropagation(); stockMonitor.openChart('${stockData.code}')" title="查看 K 線圖">📈</button>
