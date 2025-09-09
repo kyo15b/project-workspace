@@ -11,7 +11,7 @@ class StockMonitor {
         this.initAuth();
         this.bindEvents();
         await this.initStockDatabase();
-        this.loadStocks();
+        await this.loadStocks();
         this.renderStocks();
         this.startAutoRefresh();
         console.log('應用程式初始化完成');
@@ -104,14 +104,14 @@ class StockMonitor {
     }
 
     bindEvents() {
-        document.getElementById('addStock').addEventListener('click', () => {
-            this.addStock();
+        document.getElementById('addStock').addEventListener('click', async () => {
+            await this.addStock();
         });
 
         const stockCodeInput = document.getElementById('stockCode');
-        stockCodeInput.addEventListener('keypress', (e) => {
+        stockCodeInput.addEventListener('keypress', async (e) => {
             if (e.key === 'Enter') {
-                this.addStock();
+                await this.addStock();
             }
         });
 
@@ -171,51 +171,31 @@ class StockMonitor {
         this.showAuthStatus('🔄 登入中...', 'loading');
 
         // 模擬登入過程 (實際應該連接到後端 API)
-        setTimeout(() => {
-            // 先保存當前本地股票清單
-            const currentLocalStocks = [...this.stocks];
-            console.log(`登入前本地股票:`, currentLocalStocks);
-            
-            // 設定當前使用者
-            this.currentUser = email;
-            localStorage.setItem('currentUser', email);
-            console.log(`設定使用者: ${email}`);
-            
-            // 檢查雲端是否已有此帳戶的股票資料
-            const cloudKey = `stocks_${email}`;
-            const cloudStocks = localStorage.getItem(cloudKey);
-            console.log(`雲端股票資料 (${cloudKey}):`, cloudStocks);
-            
-            if (cloudStocks) {
-                // 雲端有資料，載入雲端股票
-                try {
-                    this.stocks = JSON.parse(cloudStocks);
-                    this.updateSyncStatus(`✅ 從雲端載入 ${this.stocks.length} 檔股票`);
-                    console.log(`從雲端載入股票: ${this.stocks.length} 檔`, this.stocks);
-                } catch (e) {
-                    console.error('雲端股票資料解析失敗:', e);
-                    this.stocks = currentLocalStocks;
-                    this.saveToStorage();
-                }
-            } else {
-                // 雲端沒資料，如果本地有股票則同步到雲端
-                if (currentLocalStocks.length > 0) {
-                    this.stocks = currentLocalStocks;
-                    this.saveToStorage(); // 同步到雲端
-                    this.updateSyncStatus(`✅ 本地 ${this.stocks.length} 檔股票已同步到雲端`);
-                    console.log(`本地股票已同步到雲端: ${this.stocks.length} 檔`, this.stocks);
-                } else {
-                    this.stocks = [];
-                    this.updateSyncStatus('💫 新帳戶，請開始添加股票');
-                    console.log('新帳戶，無股票資料');
-                }
+        setTimeout(async () => {
+            try {
+                // 先保存當前本地股票清單
+                const currentLocalStocks = [...this.stocks];
+                console.log(`登入前本地股票:`, currentLocalStocks);
+                
+                // 設定當前使用者
+                this.currentUser = email;
+                localStorage.setItem('currentUser', email);
+                console.log(`設定使用者: ${email}`);
+                
+                // 載入雲端股票
+                await this.loadStocks();
+                
+                this.showUserInfo();
+                this.hideAuthSection();
+                this.renderStocks();
+                
+                this.showAuthStatus('✅ 登入成功！', 'success');
+            } catch (error) {
+                console.error('登入過程發生錯誤:', error);
+                this.showAuthStatus('❌ 登入失敗，請重試', 'error');
+                this.currentUser = null;
+                localStorage.removeItem('currentUser');
             }
-            
-            this.showUserInfo();
-            this.hideAuthSection();
-            this.renderStocks();
-            
-            this.showAuthStatus('✅ 登入成功！', 'success');
         }, 1500);
     }
 
@@ -258,7 +238,7 @@ class StockMonitor {
         }
     }
 
-    addStock(stockCode = null) {
+    async addStock(stockCode = null) {
         const stockCodeInput = document.getElementById('stockCode');
         const input = stockCode || stockCodeInput.value.trim();
 
@@ -282,7 +262,7 @@ class StockMonitor {
 
         // 統一以股票代號儲存
         this.stocks.push(finalStockCode);
-        this.saveToStorage();
+        await this.saveToStorage();
         stockCodeInput.value = '';
         this.hideSearchResults();
         this.renderStocks();
@@ -332,26 +312,42 @@ class StockMonitor {
         return getStockInfo(code);
     }
 
-    removeStock(stockCode) {
+    async removeStock(stockCode) {
         this.stocks = this.stocks.filter(code => code !== stockCode);
-        this.saveToStorage();
+        await this.saveToStorage();
         this.renderStocks();
     }
 
-    loadStocks() {
+    async loadStocks() {
         if (this.currentUser) {
             // 已登入：從雲端載入
-            const cloudKey = `stocks_${this.currentUser}`;
-            const savedStocks = localStorage.getItem(cloudKey);
+            console.log(`嘗試從雲端載入股票: ${this.currentUser}`);
+            this.updateSyncStatus('🔄 從雲端載入股票...');
             
-            if (savedStocks) {
-                this.stocks = JSON.parse(savedStocks);
-                this.updateSyncStatus(`✅ 從雲端載入 ${this.stocks.length} 檔股票`);
-                console.log(`從雲端載入股票: ${this.currentUser}, 共 ${this.stocks.length} 檔股票`, this.stocks);
-            } else {
-                this.stocks = [];
-                this.updateSyncStatus('💫 新帳戶，雲端暫無股票');
-                console.log(`新帳戶: ${this.currentUser}, 雲端暫無股票資料`);
+            try {
+                const cloudStocks = await this.loadFromCloud();
+                if (cloudStocks && cloudStocks.length > 0) {
+                    this.stocks = cloudStocks;
+                    this.updateSyncStatus(`✅ 從雲端載入 ${this.stocks.length} 檔股票`);
+                    console.log(`從雲端載入股票成功: ${this.stocks.length} 檔`, this.stocks);
+                } else {
+                    // 雲端無資料，檢查本地是否有股票
+                    const localStocks = JSON.parse(localStorage.getItem('monitoredStocks')) || [];
+                    if (localStocks.length > 0) {
+                        this.stocks = localStocks;
+                        await this.saveToCloud(); // 將本地股票上傳到雲端
+                        this.updateSyncStatus(`✅ 本地 ${this.stocks.length} 檔股票已同步到雲端`);
+                    } else {
+                        this.stocks = [];
+                        this.updateSyncStatus('💫 新帳戶，請開始添加股票');
+                    }
+                }
+            } catch (error) {
+                console.error('從雲端載入股票失敗:', error);
+                // 降級到本地存儲
+                const localStocks = JSON.parse(localStorage.getItem('monitoredStocks')) || [];
+                this.stocks = localStocks;
+                this.updateSyncStatus('⚠️ 雲端載入失敗，使用本地資料');
             }
         } else {
             // 未登入：從本地載入
@@ -360,26 +356,96 @@ class StockMonitor {
         }
     }
 
-    saveToStorage() {
+    async saveToStorage() {
+        // 先保存到本地（備份）
+        localStorage.setItem('monitoredStocks', JSON.stringify(this.stocks));
+        
         if (this.currentUser) {
-            // 已登入：同步到雲端
-            const cloudKey = `stocks_${this.currentUser}`;
-            localStorage.setItem(cloudKey, JSON.stringify(this.stocks));
-            
-            // 更新同步狀態和時間戳
-            const syncData = {
-                stocks: this.stocks,
-                lastUpdate: Date.now(),
-                user: this.currentUser
-            };
-            localStorage.setItem(`${cloudKey}_sync`, JSON.stringify(syncData));
-            
-            this.updateSyncStatus(`✅ 已同步 ${this.stocks.length} 檔股票`);
-            console.log(`股票已同步到雲端: ${this.currentUser}, 共 ${this.stocks.length} 檔股票`);
-        } else {
-            // 未登入：只存本地
-            localStorage.setItem('monitoredStocks', JSON.stringify(this.stocks));
+            // 已登入：同步到真正的雲端
+            try {
+                this.updateSyncStatus('🔄 同步到雲端...');
+                await this.saveToCloud();
+                this.updateSyncStatus(`✅ 已同步 ${this.stocks.length} 檔股票到雲端`);
+                console.log(`股票已同步到雲端: ${this.currentUser}, 共 ${this.stocks.length} 檔股票`);
+            } catch (error) {
+                console.error('雲端同步失敗:', error);
+                this.updateSyncStatus('⚠️ 雲端同步失敗，已保存至本地');
+                
+                // 降級：保存到 localStorage
+                const cloudKey = `stocks_${this.currentUser}`;
+                localStorage.setItem(cloudKey, JSON.stringify(this.stocks));
+            }
         }
+    }
+
+    // 雲端同步功能 - 使用簡化的本地模擬
+    async saveToCloud() {
+        const data = {
+            user: this.currentUser,
+            stocks: this.stocks,
+            lastUpdate: Date.now(),
+            timestamp: new Date().toISOString()
+        };
+
+        try {
+            // 模擬網路延遲
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // 使用 localStorage 模擬雲端，但加上用戶識別
+            const cloudKey = `cloud_stocks_${this.getUserHash()}`;
+            localStorage.setItem(cloudKey, JSON.stringify(data));
+            
+            // 創建一個全域的用戶索引，方便查看所有用戶
+            const userIndex = JSON.parse(localStorage.getItem('cloud_user_index') || '{}');
+            userIndex[this.currentUser] = this.getUserHash();
+            localStorage.setItem('cloud_user_index', JSON.stringify(userIndex));
+            
+            console.log(`雲端保存成功 (${this.currentUser}):`, data);
+        } catch (error) {
+            console.error('雲端保存失敗:', error);
+            throw error;
+        }
+    }
+
+    async loadFromCloud() {
+        try {
+            // 模擬網路延遲
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            const cloudKey = `cloud_stocks_${this.getUserHash()}`;
+            const savedData = localStorage.getItem(cloudKey);
+            
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                console.log(`雲端載入成功 (${this.currentUser}):`, data);
+                
+                // 驗證資料格式
+                if (data && data.user === this.currentUser && Array.isArray(data.stocks)) {
+                    return data.stocks;
+                } else {
+                    console.warn('雲端資料格式不正確');
+                    return null;
+                }
+            } else {
+                console.log(`雲端無資料 (${this.currentUser})`);
+                return null;
+            }
+        } catch (error) {
+            console.error('載入雲端資料失敗:', error);
+            throw error;
+        }
+    }
+
+    // 產生用戶識別碼（簡單的hash）
+    getUserHash() {
+        let hash = 0;
+        if (this.currentUser.length === 0) return hash;
+        for (let i = 0; i < this.currentUser.length; i++) {
+            const char = this.currentUser.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash).toString(36);
     }
 
     async fetchStockData(stockCode) {
@@ -698,13 +764,19 @@ class StockMonitor {
         // 收集所有相關的 localStorage 資料
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key && (key.startsWith('stocks_') || key === 'monitoredStocks' || key === 'currentUser')) {
+            if (key && (key.startsWith('stocks_') || key.startsWith('cloud_') || key === 'monitoredStocks' || key === 'currentUser')) {
                 try {
                     debugInfo.localStorage[key] = JSON.parse(localStorage.getItem(key));
                 } catch (e) {
                     debugInfo.localStorage[key] = localStorage.getItem(key);
                 }
             }
+        }
+        
+        // 添加用戶識別資訊
+        if (this.currentUser) {
+            debugInfo.userHash = this.getUserHash();
+            debugInfo.cloudKey = `cloud_stocks_${this.getUserHash()}`;
         }
 
         // 建立調試彈窗
