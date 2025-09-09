@@ -14,7 +14,11 @@
         <div class="auth-section" id="authSection">
             <div class="auth-container">
                 <h2>🔒 帳號同步</h2>
-                <p class="auth-description">登入後可在不同裝置間同步股票清單</p>
+                <p class="auth-description">登入後可在同一瀏覽器的不同分頁間同步股票清單</p>
+                <p class="auth-description" style="font-size: 13px; opacity: 0.8; margin-top: 5px;">
+                    ⚠️ 目前版本使用瀏覽器本地存儲模擬雲端同步<br>
+                    真正的跨裝置同步需要後端服務支援
+                </p>
                 <div class="auth-form">
                     <input type="email" id="userEmail" placeholder="輸入您的 Email">
                     <button id="loginBtn" class="auth-btn">登入同步</button>
@@ -68,7 +72,7 @@
         </div>
     </div>
 
-    <!-- JSONBin.io 雲端存儲服務，無需額外 API -->
+    <!-- 模擬雲端同步 - 使用本地存儲 -->
     <script src="data/stock-list.js"></script>
     <script src="api/stock-fetcher.js"></script>
     <script src="assets/js/app.js"></script>
