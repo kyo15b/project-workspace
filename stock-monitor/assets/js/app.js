@@ -42,6 +42,62 @@ class StockMonitor {
         }
     }
 
+    showCloudLoadNotification() {
+        const notification = document.createElement('div');
+        notification.id = 'cloudLoadNotification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 10001;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            animation: slideInRight 0.5s ease-out;
+            border-left: 4px solid #ffffff;
+        `;
+        notification.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">☁️</span>
+                <div>
+                    <div style="font-weight: 700;">從雲端載入成功</div>
+                    <div style="font-size: 12px; opacity: 0.9; margin-top: 2px;">
+                        資料來源: JSONBin.io 雲端資料庫
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // 添加動畫CSS
+        if (!document.getElementById('cloudNotificationStyle')) {
+            const style = document.createElement('style');
+            style.id = 'cloudNotificationStyle';
+            style.textContent = `
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOutRight {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(notification);
+        
+        // 4秒後自動消失
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease-in';
+            setTimeout(() => notification.remove(), 300);
+        }, 4000);
+    }
+
     showUpdateStatus(message, hideAfter = null) {
         // 在頁面顯示更新狀態
         let statusDiv = document.getElementById('updateStatus');
@@ -107,6 +163,27 @@ class StockMonitor {
 
     updateSyncStatus(status) {
         document.getElementById('syncStatus').textContent = status;
+    }
+
+    updateStockListTitle() {
+        const titleElement = document.querySelector('.stocks-section h2');
+        if (titleElement) {
+            if (this.currentUser) {
+                titleElement.innerHTML = `
+                    監控清單 
+                    <span style="font-size: 14px; color: #666; font-weight: normal; margin-left: 10px;">
+                        ☁️ 雲端同步 (${this.stocks.length})
+                    </span>
+                `;
+            } else {
+                titleElement.innerHTML = `
+                    監控清單 
+                    <span style="font-size: 14px; color: #666; font-weight: normal; margin-left: 10px;">
+                        💾 本地存儲 (${this.stocks.length})
+                    </span>
+                `;
+            }
+        }
     }
 
     bindEvents() {
@@ -334,8 +411,11 @@ class StockMonitor {
                 const cloudStocks = await this.loadFromCloud();
                 if (cloudStocks && cloudStocks.length > 0) {
                     this.stocks = cloudStocks;
-                    this.updateSyncStatus(`✅ 從雲端載入 ${this.stocks.length} 檔股票`);
+                    this.updateSyncStatus(`✅ 雲端載入成功: ${this.stocks.length} 檔股票 (JSONBin.io)`);
                     console.log(`從雲端載入股票成功: ${this.stocks.length} 檔`, this.stocks);
+                    
+                    // 顯示明顯的雲端載入提示
+                    this.showCloudLoadNotification();
                 } else {
                     // 雲端無資料，檢查本地是否有股票
                     const localStocks = JSON.parse(localStorage.getItem('monitoredStocks')) || [];
@@ -617,6 +697,9 @@ class StockMonitor {
     async renderStocks() {
         const stockListContainer = document.getElementById('stockList');
         
+        // 更新標題顯示資料來源
+        this.updateStockListTitle();
+        
         if (this.stocks.length === 0) {
             stockListContainer.innerHTML = '<p class="loading">尚未添加任何股票到監控清單</p>';
             return;
@@ -850,8 +933,9 @@ class StockMonitor {
                     <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 12px; overflow-x: auto;">${JSON.stringify(debugInfo, null, 2)}</pre>
                     
                     <div style="margin-top: 20px;">
-                        <button onclick="stockMonitor.clearAllSyncData()" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 10px;">清除所有同步資料</button>
-                        <button onclick="stockMonitor.forceSyncCurrentStocks()" style="background: #27ae60; color: white; border: none; padding: 8px 16px; border-radius: 4px;">強制同步當前股票</button>
+                        <button onclick="stockMonitor.testCloudConnection()" style="background: #3498db; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 10px;">測試雲端連線</button>
+                        <button onclick="stockMonitor.forceSyncCurrentStocks()" style="background: #27ae60; color: white; border: none; padding: 8px 16px; border-radius: 4px; margin-right: 10px;">強制同步股票</button>
+                        <button onclick="stockMonitor.clearAllSyncData()" style="background: #e74c3c; color: white; border: none; padding: 8px 16px; border-radius: 4px;">清除所有資料</button>
                     </div>
                     
                     <div style="margin-top: 15px; font-size: 12px; color: #666;">
@@ -889,12 +973,34 @@ class StockMonitor {
         window.location.reload();
     }
 
-    forceSyncCurrentStocks() {
+    async forceSyncCurrentStocks() {
         if (this.currentUser) {
-            this.saveToStorage();
+            await this.saveToStorage();
             this.updateSyncStatus(`🔄 強制同步完成: ${this.stocks.length} 檔股票`);
         } else {
             alert('請先登入才能同步');
+        }
+        
+        // 關閉彈窗並重新顯示調試資訊
+        document.querySelector('.chart-modal').remove();
+        setTimeout(() => this.showSyncDebugInfo(), 100);
+    }
+
+    async testCloudConnection() {
+        if (!this.currentUser) {
+            alert('請先登入');
+            return;
+        }
+
+        try {
+            this.updateSyncStatus('🔄 測試雲端連線...');
+            const allData = await this.loadAllUsersData();
+            const userCount = Object.keys(allData).length;
+            alert(`雲端連線成功！\n資料庫中共有 ${userCount} 位用戶\n您的資料: ${allData[this.currentUser] ? '已存在' : '未存在'}`);
+            this.updateSyncStatus('✅ 雲端連線測試完成');
+        } catch (error) {
+            alert(`雲端連線失敗: ${error.message}`);
+            this.updateSyncStatus('❌ 雲端連線測試失敗');
         }
         
         // 關閉彈窗並重新顯示調試資訊
