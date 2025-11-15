@@ -464,6 +464,27 @@ export class BodyModelViewerComponent implements OnInit, OnDestroy {
       try {
         // 使用相對路徑，讓 base href 正確處理
         const model = await this.bodyModelService.loadModel('assets/models/female-body.glb');
+
+        // 計算模型邊界框並居中
+        const box = new THREE.Box3().setFromObject(model);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+
+        // 將模型移到中心點
+        model.position.x = -center.x;
+        model.position.y = -center.y;
+        model.position.z = -center.z;
+
+        // 調整相機和控制器以適應模型
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fov = this.camera.fov * (Math.PI / 180);
+        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+        cameraZ *= 1.5; // 增加一些空間
+
+        this.camera.position.set(0, 0, cameraZ);
+        this.controls.target.set(0, 0, 0);
+        this.controls.update();
+
         this.scene.add(model);
         this.isModelVisible = true;
       } catch (error) {
