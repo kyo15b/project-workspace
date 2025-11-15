@@ -3,6 +3,9 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { BodyPart, BodyPartClickEvent, ModelLoadProgress } from '../models/body-part.interface';
 
 @Injectable({
@@ -144,22 +147,39 @@ export class BodyModelService {
   }
 
   private addOutlineEffect(mesh: THREE.Mesh): void {
-    // 創建亮橘色外框 - 使用稍大的橘色 mesh 作為背景
-    const outlineMaterial = new THREE.MeshBasicMaterial({
+    // 創建橘色外框線 - 使用 Line2 支援粗線條
+    const edges = new THREE.EdgesGeometry(mesh.geometry);
+    const positions: number[] = [];
+
+    // 將 EdgesGeometry 的頂點轉換為 Line2 需要的格式
+    const positionAttribute = edges.attributes['position'];
+    for (let i = 0; i < positionAttribute.count; i++) {
+      positions.push(
+        positionAttribute.getX(i),
+        positionAttribute.getY(i),
+        positionAttribute.getZ(i)
+      );
+    }
+
+    const lineGeometry = new LineGeometry();
+    lineGeometry.setPositions(positions);
+
+    const lineMaterial = new LineMaterial({
       color: 0xff6600,  // 亮橘色
-      side: THREE.BackSide  // 只顯示背面，創造外框效果
+      linewidth: 3,     // 線寬 (以像素為單位)
+      resolution: new THREE.Vector2(1920, 1080)  // 解析度
     });
 
-    const outlineMesh = new THREE.Mesh(mesh.geometry.clone(), outlineMaterial);
+    const line = new Line2(lineGeometry, lineMaterial);
+    line.computeLineDistances();
+    line.scale.setScalar(1);
 
-    // 放大一點點以創造外框效果
-    outlineMesh.scale.multiplyScalar(1.05);
-    outlineMesh.name = `highlight_${mesh.uuid}`;
-    outlineMesh.userData['isHighlight'] = true;
+    line.name = `highlight_${mesh.uuid}`;
+    line.userData['isHighlight'] = true;
 
     // 添加到同一個父節點
     if (mesh.parent) {
-      mesh.parent.add(outlineMesh);
+      mesh.parent.add(line);
     }
   }
 
@@ -171,7 +191,10 @@ export class BodyModelService {
       if (highlightToRemove) {
         mesh.parent.remove(highlightToRemove);
         // 清理幾何體和材質
-        if (highlightToRemove instanceof THREE.Mesh || highlightToRemove instanceof THREE.LineSegments) {
+        if (highlightToRemove instanceof Line2) {
+          highlightToRemove.geometry.dispose();
+          highlightToRemove.material.dispose();
+        } else if (highlightToRemove instanceof THREE.Mesh || highlightToRemove instanceof THREE.LineSegments) {
           highlightToRemove.geometry.dispose();
           if (highlightToRemove.material instanceof THREE.Material) {
             highlightToRemove.material.dispose();
