@@ -462,8 +462,8 @@ export class BodyModelViewerComponent implements OnInit, OnDestroy {
     if (!this.isModelVisible) {
       // 載入模型
       try {
-        // 假設您將女性模型轉換後放在這個路徑
-        const model = await this.bodyModelService.loadModel('/assets/models/test2-female-body.glb');
+        // 使用相對路徑，讓 base href 正確處理
+        const model = await this.bodyModelService.loadModel('assets/models/female-body.glb');
         this.scene.add(model);
         this.isModelVisible = true;
       } catch (error) {
