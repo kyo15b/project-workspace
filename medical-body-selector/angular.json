@@ -34,7 +34,7 @@
           },
           "configurations": {
             "production": {
-              "baseHref": "/project-workspace/medical-body-selector/",
+              "baseHref": "/project-workspace/",
               "budgets": [
                 {
                   "type": "initial",
