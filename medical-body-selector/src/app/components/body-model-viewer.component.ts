@@ -522,7 +522,7 @@ export class BodyModelViewerComponent implements OnInit, OnDestroy {
       if (child instanceof THREE.Mesh) {
         // 使用 MeshBasicMaterial 直接顯示顏色，不需要光照計算
         const grayMaterial = new THREE.MeshBasicMaterial({
-          color: 0x999999,      // 中灰色 (更深一點)
+          color: 0x808080,      // 更深的灰色
           side: THREE.DoubleSide
         });
         child.material = grayMaterial;

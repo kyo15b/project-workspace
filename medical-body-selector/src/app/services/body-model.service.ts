@@ -144,23 +144,22 @@ export class BodyModelService {
   }
 
   private addOutlineEffect(mesh: THREE.Mesh): void {
-    // 創建亮橘色外框線 - 只顯示邊緣輪廓
-    const edgesGeometry = new THREE.EdgesGeometry(mesh.geometry);
-    const lineMaterial = new THREE.LineBasicMaterial({
-      color: 0xff7700,  // 亮橘色
-      linewidth: 3      // 線條寬度
+    // 創建亮橘色外框 - 使用稍大的橘色 mesh 作為背景
+    const outlineMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff6600,  // 亮橘色
+      side: THREE.BackSide  // 只顯示背面，創造外框效果
     });
 
-    const wireframe = new THREE.LineSegments(edgesGeometry, lineMaterial);
+    const outlineMesh = new THREE.Mesh(mesh.geometry.clone(), outlineMaterial);
 
-    // 稍微放大避免 Z-fighting
-    wireframe.scale.multiplyScalar(1.002);
-    wireframe.name = `highlight_${mesh.uuid}`;
-    wireframe.userData['isHighlight'] = true;
+    // 放大一點點以創造外框效果
+    outlineMesh.scale.multiplyScalar(1.05);
+    outlineMesh.name = `highlight_${mesh.uuid}`;
+    outlineMesh.userData['isHighlight'] = true;
 
     // 添加到同一個父節點
     if (mesh.parent) {
-      mesh.parent.add(wireframe);
+      mesh.parent.add(outlineMesh);
     }
   }
 
@@ -172,12 +171,7 @@ export class BodyModelService {
       if (highlightToRemove) {
         mesh.parent.remove(highlightToRemove);
         // 清理幾何體和材質
-        if (highlightToRemove instanceof THREE.LineSegments) {
-          highlightToRemove.geometry.dispose();
-          if (highlightToRemove.material instanceof THREE.Material) {
-            highlightToRemove.material.dispose();
-          }
-        } else if (highlightToRemove instanceof THREE.Mesh) {
+        if (highlightToRemove instanceof THREE.Mesh || highlightToRemove instanceof THREE.LineSegments) {
           highlightToRemove.geometry.dispose();
           if (highlightToRemove.material instanceof THREE.Material) {
             highlightToRemove.material.dispose();
