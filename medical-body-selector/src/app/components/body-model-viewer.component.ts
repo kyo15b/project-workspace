@@ -517,12 +517,12 @@ export class BodyModelViewerComponent implements OnInit, OnDestroy {
   }
 
   private addMedicalStyleEdges(model: THREE.Group): void {
-    // 設置醫療風格的淺灰色材質 - 使用 BasicMaterial 不受光照影響
+    // 設置醫療風格的灰色材質 - 使用 BasicMaterial 不受光照影響
     model.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         // 使用 MeshBasicMaterial 直接顯示顏色，不需要光照計算
         const grayMaterial = new THREE.MeshBasicMaterial({
-          color: 0xd0d0d0,      // 淺灰色
+          color: 0x999999,      // 中灰色 (更深一點)
           side: THREE.DoubleSide
         });
         child.material = grayMaterial;
