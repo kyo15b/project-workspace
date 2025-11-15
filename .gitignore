@@ -32,3 +32,6 @@ temp*.jpg
 # 3D model files might be large
 *.glb
 *.gltf
+
+# Allow model files in assets
+!medical-body-selector/src/assets/models/*.glb
