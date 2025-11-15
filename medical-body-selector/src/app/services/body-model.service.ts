@@ -144,14 +144,12 @@ export class BodyModelService {
   }
 
   private addOutlineEffect(mesh: THREE.Mesh): void {
-    // 創建亮橘色高亮外框
-    const highlightMaterial = new THREE.MeshPhongMaterial({
-      color: 0xff8800, // 亮橘色
+    // 創建亮橘色高亮外框 - 使用 BasicMaterial 確保顏色鮮明
+    const highlightMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff7700, // 亮橘色
       transparent: true,
-      opacity: 0.85,
-      emissive: 0xff6600,  // 強烈的橘色自發光
-      emissiveIntensity: 0.8,  // 高強度自發光確保醒目
-      shininess: 100
+      opacity: 0.9,
+      side: THREE.DoubleSide
     });
 
     const highlightGeometry = mesh.geometry.clone();
