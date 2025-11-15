@@ -23,7 +23,9 @@
       "Bash(move tsconfig.app.json medical-body-selector/)",
       "Bash(powershell:*)",
       "Bash(git rm:*)",
-      "Bash(git remote set-url:*)"
+      "Bash(git remote set-url:*)",
+      "Bash(curl:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": [],

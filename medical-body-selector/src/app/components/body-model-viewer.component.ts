@@ -423,15 +423,30 @@ export class BodyModelViewerComponent implements OnInit, OnDestroy {
     this.controls.maxDistance = 20;
     this.controls.minDistance = 2;
     
-    // 光照設置
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // 增強環境光
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); // 增強方向光
-    directionalLight.position.set(10, 10, 5);
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.setScalar(2048);
-    
+    // 光照設置 - 醫療級別的明亮照明
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); // 強環境光確保基礎可見度
+    const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8); // 半球光模擬天空地面
+    hemisphereLight.position.set(0, 20, 0);
+
+    // 主方向光 - 從前上方照射
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    mainLight.position.set(10, 10, 10);
+    mainLight.castShadow = true;
+    mainLight.shadow.mapSize.setScalar(2048);
+
+    // 補光 - 從側面照射避免陰影過深
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    fillLight.position.set(-10, 5, -5);
+
+    // 背光 - 確保沒有完全黑暗的區域
+    const backLight = new THREE.DirectionalLight(0xffffff, 0.4);
+    backLight.position.set(0, 0, -10);
+
     this.scene.add(ambientLight);
-    this.scene.add(directionalLight);
+    this.scene.add(hemisphereLight);
+    this.scene.add(mainLight);
+    this.scene.add(fillLight);
+    this.scene.add(backLight);
   }
 
   private setupEventListeners(): void {
@@ -505,12 +520,14 @@ export class BodyModelViewerComponent implements OnInit, OnDestroy {
     // 設置醫療風格的灰色材質（不添加邊緣線，保持清晰的部位分割）
     model.traverse((child) => {
       if (child instanceof THREE.Mesh) {
-        // 替換為灰色材質
+        // 替換為明亮的灰色材質，添加少量自發光確保可見性
         const grayMaterial = new THREE.MeshStandardMaterial({
-          color: 0xb0b0b0,      // 淺灰色
-          metalness: 0.2,
-          roughness: 0.6,
-          flatShading: false
+          color: 0xc8c8c8,      // 更亮的灰色
+          metalness: 0.1,
+          roughness: 0.5,
+          flatShading: false,
+          emissive: 0x404040,   // 添加深灰色自發光確保基礎可見度
+          emissiveIntensity: 0.15  // 低強度自發光，避免過亮
         });
         child.material = grayMaterial;
       }
