@@ -502,28 +502,17 @@ export class BodyModelViewerComponent implements OnInit, OnDestroy {
   }
 
   private addMedicalStyleEdges(model: THREE.Group): void {
-    // 遍歷模型中的所有網格，添加醫療風格的邊緣線
+    // 設置醫療風格的灰色材質（不添加邊緣線，保持清晰的部位分割）
     model.traverse((child) => {
       if (child instanceof THREE.Mesh) {
-        // 完全替換材質為醫療風格的灰色材質
+        // 替換為灰色材質
         const grayMaterial = new THREE.MeshStandardMaterial({
-          color: 0xa0a0a0,      // 灰色
-          metalness: 0.1,
-          roughness: 0.7,
+          color: 0xb0b0b0,      // 淺灰色
+          metalness: 0.2,
+          roughness: 0.6,
           flatShading: false
         });
         child.material = grayMaterial;
-
-        // 創建邊緣線
-        const edges = new THREE.EdgesGeometry(child.geometry);
-        const lineMaterial = new THREE.LineBasicMaterial({
-          color: 0x000000,  // 黑色線條
-          linewidth: 2      // 加粗線條
-        });
-        const wireframe = new THREE.LineSegments(edges, lineMaterial);
-
-        // 將邊緣線添加到網格
-        child.add(wireframe);
       }
     });
   }
