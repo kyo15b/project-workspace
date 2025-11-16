@@ -522,9 +522,11 @@ export class BodyModelViewerComponent implements OnInit, OnDestroy {
       if (child instanceof THREE.Mesh) {
         // 使用 MeshStandardMaterial 創造類似塑膠的 3D 質感
         const plasticMaterial = new THREE.MeshStandardMaterial({
-          color: 0x6a6a6a,      // 更深的灰色 (接近 Blender)
+          color: 0x8a8a8a,      // 中深灰色
           metalness: 0.0,       // 非金屬
           roughness: 0.5,       // 塑膠粗糙度
+          emissive: 0x404040,   // 添加自發光避免全黑
+          emissiveIntensity: 0.3,  // 自發光強度
           side: THREE.DoubleSide
         });
         child.material = plasticMaterial;
