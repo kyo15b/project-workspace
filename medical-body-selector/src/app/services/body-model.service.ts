@@ -165,9 +165,9 @@ export class BodyModelService {
     lineGeometry.setPositions(positions);
 
     const lineMaterial = new LineMaterial({
-      color: 0xff7700,  // 亮橘色
-      linewidth: 0.005,  // 線寬 (世界單位)
-      worldUnits: true,  // 使用世界單位而非像素
+      color: 0xff6600,  // 亮橘色
+      linewidth: 0.01,  // 增加線寬讓外框更明顯
+      worldUnits: true,  // 使用世界單位
       resolution: new THREE.Vector2(window.innerWidth, window.innerHeight)
     });
 
